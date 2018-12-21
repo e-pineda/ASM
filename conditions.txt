@@ -1,30 +1,25 @@
 {"on", "dummy bit -- always on"},			
 {"off", "dummy bit -- always off"},
 {"random", "random on or off"},
-
 {"dup", "dividend went up this period"},		
 {"dup1", "dividend went up one period ago"},
 {"dup2", "dividend went up two periods ago"},
 {"dup3", "dividend went up three periods ago"},
 {"dup4", "dividend went up four periods ago"},
-
 {"d5up", "5-period MA of dividend went up"},		
 {"d20up", "20-period MA of dividend went up"},
 {"d100up", "100-period MA of dividend went up"},
 {"d500up", "500-period MA of dividend went up"},
-
 {"d>d5",   "dividend > 5-period MA"},			
 {"d>d20",  "dividend > 20-period MA"},
 {"d>d100", "dividend > 100-period MA"},
 {"d>d500", "dividend > 500-period MA"},
-
 {"d5>d20", "dividend: 5-period MA > 20-period MA"},	
 {"d5>d100", "dividend: 5-period MA > 100-period MA"},
 {"d5>d500", "dividend: 5-period MA > 500-period MA"},
 {"d20>d100", "dividend: 20-period MA > 100-period MA"},
 {"d20>d500", "dividend: 20-period MA > 500-period MA"},
 {"d100>d500", "dividend: 100-period MA > 500-period MA"},
-
 {"d/md>1/4", "dividend/mean dividend > 1/4"},		
 {"d/md>1/2", "dividend/mean dividend > 1/2"},
 {"d/md>3/4", "dividend/mean dividend > 3/4"},
@@ -35,7 +30,6 @@
 {"d/md>3/2", "dividend/mean dividend > 3/2"},
 {"d/md>2", "dividend/mean dividend > 2"},
 {"d/md>4", "dividend/mean dividend > 4"},
-
 {"pr/d>1/4", "price*interest/dividend > 1/4"},		
 {"pr/d>1/2", "price*interest/dividend > 1/2"},
 {"pr/d>3/4", "price*interest/dividend > 3/4"},
@@ -46,23 +40,19 @@
 {"pr/d>3/2", "price*interest/dividend > 3/2"},
 {"pr/d>2",   "price*interest/dividend > 2"},
 {"pr/d>4",   "price*interest/dividend > 4"},
-
 {"pup", "price went up this period"},			
 {"pup1", "price went up one period ago"},
 {"pup2", "price went up two periods ago"},
 {"pup3", "price went up three periods ago"},
 {"pup4", "price went up four periods ago"},
-
 {"p5up", "5-period MA of price went up"},	
 {"p20up", "20-period MA of price went up"},
 {"p100up", "100-period MA of price went up"},
 {"p500up", "500-period MA of price went up"},
-
 {"p>p5", "price > 5-period MA"},		
 {"p>p20", "price > 20-period MA"},
 {"p>p100", "price > 100-period MA"},
 {"p>p500", "price > 500-period MA"},
-
 {"p5>p20", "price: 5-period MA > 20-period MA"},
 {"p5>p100", "price: 5-period MA > 100-period MA"},
 {"p5>p500", "price: 5-period MA > 500-period MA"},

@@ -1,12 +1,10 @@
-import NumericStringParser
-
-
 class Condition(object):
-    def __init__(self, cond_id, name, description, status=False):
+    def __init__(self, cond_id, name, description, status=False, is_monitored=False):
         self.id = cond_id
         self.name = name
         self.description = description
         self.status = status
+        self.is_monitored = is_monitored
 
     def __set_name__(self, new_name):
         self.name = new_name
@@ -17,13 +15,16 @@ class Condition(object):
     def __setstate__(self, state):
         self.status = state
 
+    def __set_monitor__(self, abool):
+        self.is_monitored = abool
+
     @property
     def __getstate__(self):
         return self.status
 
     @property
     def __get__(self):
-        return self.id, self.name, self.description, self.status
+        return self.id, self.description, self.status
 
     @property
     def __get_id__(self):
@@ -36,6 +37,10 @@ class Condition(object):
     @property
     def __get_desc__(self):
         return self.description
+
+    @property
+    def __get_monitor__(self):
+        return self.monitor
 
     def __print__(self):
         print(self.id, self.name, self.description, self.status)
@@ -87,6 +92,7 @@ class ConditionList(object):
 
     def __next__(self):
         if self.curr_cond >= len(self.conditions):
+            self.curr_cond = 0
             raise StopIteration
         else:
             self.curr_cond += 1
@@ -94,3 +100,8 @@ class ConditionList(object):
 
     def __getitem__(self, item):
         return self.conditions[item]
+
+    def __get_condition_id__(self, name):
+        for condition in self.conditions:
+            if condition.__get_name__ == name:
+                return condition.__get_id__

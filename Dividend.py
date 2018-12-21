@@ -9,10 +9,10 @@ class Dividend(object):
 
         self.normal_dist = self.gen_normal_dist()
 
-        self.min_dividend = 1
-        self.max_dividend = 100
-        self.amplitude = .5
-        self.period = 3
+        self.min_dividend = None
+        self.max_dividend = None
+        self.amplitude = None
+        self.period = None
 
         self.derived_params = None
         self.deviation = None
@@ -43,10 +43,10 @@ class Dividend(object):
         sample = self.__get_sample__
         self.dividend = self.baseline + (self.gauss * sample)
 
-        print("Deviation", self.deviation)
-        print("rho", self.rho)
-        print("Gauss", self.gauss)
-        print("Dividend", self.dividend)
+        # print("Deviation", self.deviation)
+        # print("rho", self.rho)
+        # print("Gauss", self.gauss)
+        # print("Dividend", self.dividend)
 
     def __set_baseline__(self, new_base):
         self.baseline = new_base
@@ -66,7 +66,7 @@ class Dividend(object):
     def __set_max_dividend__(self, new_max):
         self.max_dividend = new_max
 
-    def __set_amplitude_(self, new_amplitude):
+    def __set_amplitude__(self, new_amplitude):
         self.amplitude = new_amplitude
 
         if self.amplitude < 0.0:
@@ -77,7 +77,7 @@ class Dividend(object):
 
         self.amplitude = 0.0001 * round(10000.0 * self.amplitude)
 
-    def set_period(self, new_period):
+    def __set_period__(self, new_period):
         self.period = new_period
 
         if self.period < 2:
