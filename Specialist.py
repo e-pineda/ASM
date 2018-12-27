@@ -24,6 +24,13 @@ class MarketClearer(object):
         self.profit_per_unit = None
         self.agents = None
 
+        self.buy_threshold = .2
+        self.sell_threshold = -.2
+        self.total_buys = 0
+        self.total_sells = 0
+        self.attempted_buys = 0
+        self.attempted_sells = 0
+
     def __set_max_price__(self, x):
         self.max_price = x
 
@@ -84,92 +91,14 @@ class MarketClearer(object):
         return self.volume
 
     def perform_trades(self):
-        # done = False
-        # slope, imbalance = 0, 0
-        # slope_total = 0.0
-        # trial_price = 0.0
-        # offer_total = 0.0
-        # bid_total = 0.0
-        #
-        #
-        # for i in range(self.max_iterations):
-        #     if not done:
-        #         if self.sp_type == 0:
-        #             trial_price = self.rea * self.dividend + self.reb
-        #             done = True
-        #
-        #         if self.sp_type == 1:
-        #             if i == 0:
-        #                 trial_price = self.world_price
-        #
-        #             else:
-        #                 imbalance = bid_total - offer_total
-        #                 if imbalance <= self.min_excess and imbalance >= -self.min_excess:
-        #                     done = True
-        #                     continue
-        #                 # print("HERE")
-        #                 if slope_total != 0:
-        #                     trial_price -= imbalance / slope_total
-        #                 else:
-        #                     trial_price += 1 + self.eta * imbalance
-        #
-        #
-        #         elif self.sp_type == 2:
-        #             if index == 0:
-        #                 trial_price = self.world_price
-        #             else:
-        #                 trial_price *= self.world_price * (1 + self.eta * (bid_total - offer_total))
-        #                 done = True
-        #         trial_price = self.world_price
-        #
-        #         if trial_price < self.min_price:
-        #             trial_price = self.min_price
-        #         elif trial_price > self.max_price:
-        #             trial_price = self.max_price
-        #
-        #         bid_total = 0
-        #         offer_total = 0
-        #         slope_total = 0
-        #
-        #         buys = 0
-        #         sells = 0
-        #         attempted_sells = 0
-        #         attempted_buys = 0
-        #
-        #         for agent in self.agents:
-        #             slope = 0
-        #             slope, agent_price = agent.calc_demand_slope(slope, trial_price)
-        #             slope_total += slope
-        #
-        #             if agent.__get_demand__ > 0.1:
-        #                 bid_total += agent_price
-        #                 buys += 1
-        #                 attempted_buys += 1
-        #
-        #             elif agent.__get_demand__ < 0:
-        #                 offer_total -= agent_price
-        #                 sells += 1
-        #                 attempted_sells += 1
-        #
-        #             demand_coefficient = attempted_sells *.01 if attempted_sells > attempted_buys else (attempted_buys *.01) + 1
-        #             trial_price =
-        #         self.volume = offer_total if bid_total > offer_total else bid_total
-        #         self.bid_fraction = self.volume / bid_total if bid_total > 0 else 0
-        #         self.offer_fraction = self.volume / offer_total if offer_total > 0 else 0
-        #
-        #
-        #         print("TOTALS: ", bid_total, offer_total)
-        #         print("VOLUME: ", self.volume, self.bid_fraction, self.offer_fraction)
-        #         print("--------------------")
-        trial_price = 0
         bid_total = 0
         offer_total = 0
         slope_total = 0
 
-        buys = 0
-        sells = 0
-        attempted_sells = 0
-        attempted_buys = 0
+        self.total_buys = 0
+        self.total_sells = 0
+        self.attempted_buys = 0
+        self.attempted_sells = 0
 
         trial_price = self.world_price
         for agent in self.agents:
@@ -177,21 +106,24 @@ class MarketClearer(object):
             slope, agent_price = agent.calc_demand_slope(slope, trial_price)
             slope_total += slope
 
-            if agent.__get_demand__ > 0.2:
-                buys += 1
-                attempted_buys += 1
+            if agent.__get_demand__ > self.buy_threshold:
+                self.total_buys += 1
+                self.attempted_buys += 1
                 bid_total += agent_price
 
-            elif agent.__get_demand__ < -0.2:
-                sells += 1
-                attempted_sells += 1
+            elif agent.__get_demand__ < self.sell_threshold:
+                self.total_sells += 1
+                self.attempted_sells += 1
                 offer_total -= agent_price
-        if attempted_sells > attempted_buys:
-            demand_coefficient = attempted_sells * .01
-        elif attempted_buys > attempted_sells:
-            demand_coefficient = (attempted_buys * .01) + 1
+
+        # Calculate price
+        if self.attempted_sells > self.attempted_buys:
+            demand_coefficient = self.attempted_sells * .01
+        elif self.attempted_buys > self.attempted_sells:
+            demand_coefficient = (self.attempted_buys * .01) + 1
         else:
             demand_coefficient = 1
+
         trial_price = self.world_dividend * demand_coefficient / self.int_rate
 
         if self.world_price - (self.world_price * .3) > trial_price:
@@ -206,56 +138,37 @@ class MarketClearer(object):
         self.bid_fraction = self.volume / bid_total if bid_total > 0 else 0
         self.offer_fraction = self.volume / offer_total if offer_total > 0 else 0
 
-        # print(trial_price)
         return trial_price
 
     def complete_trades(self):
-        buys = 0
-        sells = 0
-        attempted_sells = 0
-        attempted_buys = 0
         bf_price = self.bid_fraction * self.world_price
         of_price = self.offer_fraction * self.world_price
         t_price = self.taup_new * self.profit_per_unit
 
         for agent in self.agents:
-            # Aggressive Buy
-            # if agent.__get_demand__ > -0.1:
-            if agent.__get_demand__ > 0.2:
-                buys += 1
-                attempted_buys += 1
-
-            # Aggressive Sell
-            elif agent.__get_demand__ < -.2:
-            # elif agent.__get_demand__ <= -0.1:
-                sells += 1
-                attempted_sells += 1
-
             new_profit = self.taup_decay * agent.__get_profit__ + t_price * agent.__get_pos__
             agent.__set_profit__(new_profit)
 
-        smallest_num = min(buys, sells)
+        smallest_num = min(self.total_buys, self.total_sells)
         buys = smallest_num
         sells = smallest_num
 
         if buys != 0 and sells != 0:
             for i in range(smallest_num):
-                agent = self.agents[smallest_num]
-                if agent.__get_demand__ > 0.2:
+
+                agent = self.agents[i]
+                if agent.__get_demand__ > self.buy_threshold:
                     new_position = agent.__get_pos__ + agent.__get_demand__*self.bid_fraction
                     agent.__set_pos__(new_position)
 
                     new_cash = agent.__get_cash__ - agent.__get_demand__ * bf_price
                     agent.__set_cash__(new_cash)
 
-                elif agent.__get_demand__ < -0.2:
+                elif agent.__get_demand__ < self.sell_threshold:
                     new_position = agent.__get_pos__ + agent.__get_demand__*self.offer_fraction
                     agent.__set_pos__(new_position)
 
                     new_cash = agent.__get_cash__ - agent.__get_demand__ * of_price
                     agent.__set_cash__(new_cash)
 
-
-                # print("CASE 2", new_profit, new_position, new_cash)
-
-        return buys, sells, attempted_sells, attempted_buys
+        return self.total_buys, self.total_sells, self.attempted_buys, self.attempted_sells

@@ -244,7 +244,6 @@ class Agent(object):
         prob_list = self.forecast_params["prob_list"]
 
         # print("---RANDOM FORECASTS---")
-        # print("Bit List: ", bit_list)
         # print("Prob List: ", prob_list)
         # print("Conditions: ", forecast_object.__get_conditions__)
         # print("Spec Factor: ", forecast_object.__get_spec_factor__)
