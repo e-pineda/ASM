@@ -4,6 +4,8 @@ import MarketMechanics
 import Agents
 import Specialist
 import ModelParams
+import ForecastParams
+import Conditions
 import csv
 import pandas as pd
 from itertools import *
@@ -11,59 +13,51 @@ from itertools import *
 
 class Market(object):
     def __init__(self):
-        # Initialize model parameters
-        self.ModelParamsObj = ModelParams.Params()
-        self.model_params = self.ModelParamsObj.load_conditions
+        # Initialize storage for market performance
+        self.div_ratio, self.pr_ratio = [], []
+        self.div_periods, self.pr_periods = [[], [], [], [], []], [[], [], [], [], []]
+        self.div_mas, self.pr_mas = [[], [], [], []], [[], [], [], []]
 
-        # Initialize market variables
-        self.Mechanics = MarketMechanics.Mechanics()
+        # Initialize model parameters
+        self.model_params = {}
+        self.__load_model_params__()
+
+        # Initialize conditions
+        self.conditions = Conditions.ConditionList()
+        self.__load_conditions__()
+
+        # Initialize forecast parameters
+        self.forecast_params = {}
+        self.__load_forecast_params__()
+
+        # Initialize market mechanics
+        self.Mechanics = MarketMechanics.Mechanics(self.model_params, self.conditions)
         self.__set_world_values__()
         self.__set_dividend_values__()
 
+        # Store initial dividend and price
         self.init_dividend = self.Mechanics.__get_dividend__
-        self.dividend_value = self.init_dividend
-
         self.init_asset_price = self.Mechanics.__get_price__
+        self.dividend_value = self.init_dividend
         self.price = self.init_asset_price
-
-        self.conditions = self.Mechanics.__get_conditions__
-
-        # Initialize forecasting parameters
-        self.forecast_params = self.Mechanics.__get_forecast_params__
 
         # Initialize population space
         self.population = []
         self.__set_agent_values__()
 
-        # Initialize market-clearer
+        # Initialize market-maker
         self.specialist = Specialist.MarketClearer()
         self.__set_specialist_values__()
 
-        # Initialize assets
-        # RISKY ASSETS
-        # ----------
-        # self.risky_assets = []
-        # # Properties
-        # self.risky_asset_size = 300
-        # self.total_risky_asset_size = self.population.__sizeof__ + self.risky_asset_size
-        # self.remaining_asset_size = self.total_risky_asset_size
-        # self.init_asset_price = 50
-        # # Create assets & distribute 1 asset to each agent
-        # self.generate_risky_assets()
-        # self.birth_asset()
-        #
-        # # ----------
-        # # BONDS
-        # self.bonds = []
-        # self.starting_bond_price = 15
-
+        # Clock
         self.curr_time = 0
         self.time_duration = 1000
-
         self.warm_up_time = 501
-        self.warm_up()
 
-        self.run_market()
+        # Warm-Up and run
+        self.warm_up()
+        # self.run_market()
+        self.populate_records()
 
     @property
     def __get_agent_size__(self):
@@ -88,6 +82,70 @@ class Market(object):
     @property
     def __get_time__(self):
         return self.curr_time
+
+    def __load_model_params__(self):
+        with open("model_params.txt", mode='r') as in_file:
+            for line in in_file:
+                if '=' not in line:
+                    continue
+                if line == "Forecast Parameters":
+                    break
+
+                parameter = line.split()
+                param_var = parameter[0]
+
+                if param_var == "ratios":
+                    param_value = [float(value) for value in parameter[2:]]
+                else:
+                    param_value = float(parameter[2])
+
+                self.model_params[param_var] = param_value
+
+    def __load_forecast_params__(self):
+        flag = False
+
+        with open("model_params.txt", mode='r') as in_file:
+            for line in in_file:
+                if '=' not in line or line == 'Forecast Parameters':
+                    flag = True
+                    continue
+
+                if flag:
+                    parameter = line.split()
+                    param_var = parameter[0]
+                    param_value = float(parameter[2])
+
+                    self.forecast_params[param_var] = param_value
+
+        self.forecast_params['cond_words'] = int((self.forecast_params['cond_bits'] + 15) / 16)
+        self.forecast_params['a_range'] = self.forecast_params["a_max"] - self.forecast_params["a_min"]
+        self.forecast_params['b_range'] = self.forecast_params["b_max"] - self.forecast_params["b_min"]
+        self.forecast_params['c_range'] = self.forecast_params["c_max"] - self.forecast_params["c_min"]
+        self.forecast_params['ga_prob'] = 1 / self.forecast_params['ga_freq']
+
+        self.forecast_params['n_pool'] = self.forecast_params['num_forecasts'] * self.forecast_params['pool_fraction']
+        self.forecast_params['n_new'] = self.forecast_params['num_forecasts'] * self.forecast_params['new_fraction']
+
+        self.forecast_params['prob_list'] = [self.forecast_params['bit_prob'] for i in range(int(self.forecast_params['cond_bits']))]
+
+        monitor_conditions = ["pr/d>1/4", "pr/d>1/2", "pr/d>3/4", "pr/d>7/8", "pr/d>1", "pr/d>9/8", "p>p5",
+                              "p>p20", "p>p100", "p>p500", "on", "off"]
+        bit_list = [None for i in range(len(monitor_conditions))]
+        for i, name in enumerate(monitor_conditions):
+            bit_list[i] = self.conditions.__get_condition_id__(name)
+        self.forecast_params['bit_list'] = bit_list
+
+    def __load_conditions__(self):
+        with open('conditions.txt') as infile:
+            index = 0
+            for condition in infile:
+                try:
+                    name, description, *rest = condition.replace("{", '').replace("}", "").replace('"', '').split(',')
+                except Exception as e:
+                    pass
+                new_cond = Conditions.Condition(index, name, description)
+                self.conditions.__add__(new_cond)
+                index += 1
 
     def __set_dividend_values__(self):
         baseline = self.model_params["baseline"]
@@ -114,7 +172,8 @@ class Market(object):
         rea = self.model_params["rea"]
         reb = self.model_params["reb"]
         self.specialist.__set_vals__(max_price=max_price, min_price=min_price, taup=taup, sp_type=sp_type,
-                                     max_iterations=max_iterations, min_excess=min_excess, eta=eta, rea=rea, reb=reb, agents=self.population)
+                                     max_iterations=max_iterations, min_excess=min_excess, eta=eta, rea=rea, reb=reb,
+                                     agents=self.population)
 
     def __set_agent_values__(self):
         int_rate = self.model_params["int_rate"]
@@ -123,11 +182,64 @@ class Market(object):
         position = self.model_params['init_holding']
         min_cash = self.model_params['min_cash']
 
-        for i in range(self.model_params['num_agents']):
+        for i in range(int(self.model_params['num_agents'])):
             agent = Agents.Agent(id=i, name='Agent '+str(i), int_rate=int_rate, min_holding=min_holding, init_cash=init_cash, position=position,
                           forecast_params=self.forecast_params, dividend=self.init_dividend, price=self.init_asset_price, conditions=self.conditions, min_cash=min_cash)
             agent.__set_holdings__()
             self.population.append(agent)
+
+    def catch_market_states(self):
+        price_history, div_history = self.Mechanics.__get_histories__
+        price_ma, div_ma = self.Mechanics.__get_mas__
+
+        # Dividend to mean dividend ratio
+        self.div_ratio.append(self.Mechanics.__get_div_ratio__)
+
+        # Price * interest to dividend dividend ratio
+        self.pr_ratio.append(self.Mechanics.__get_price_ratio__)
+
+        # Dividend and Price for the 5 most recent periods
+        for i in range(5):
+            self.div_periods[i].append(div_history[-i])
+            self.pr_periods[i].append(price_history[-i])
+
+        # Dividend moving average
+        for i, ma in enumerate(div_ma):
+            self.div_mas[i].append(ma.__get_ma__())
+
+        # Price moving average
+        for i, ma in enumerate(price_ma):
+            self.pr_mas[i].append(ma.__get_ma__())
+
+    def populate_records(self):
+        data = {
+            "Dividend Ratio": self.div_ratio,
+            "Price ratio": self.pr_ratio,
+
+            # 'Recent Div 1 period ago': self.div_periods[0],
+            # 'Recent Div 2 periods ago': self.div_periods[1],
+            # 'Recent Div 3 periods ago': self.div_periods[2],
+            # 'Recent Div 4 periods ago': self.div_periods[3],
+            # 'Recent Div 5 periods ago': self.div_periods[4],
+            #
+            # 'Recent Price 1 period': self.pr_periods[0],
+            # 'Recent Price 2 periods ago': self.pr_periods[1],
+            # 'Recent Price 3 periods ago': self.pr_periods[2],
+            # 'Recent Price 4 periods ago': self.pr_periods[3],
+            # 'Recent Price 5 periods ago': self.pr_periods[4],
+
+            '5 Day Div Moving Average': self.div_mas[0],
+            '20 Day Div Moving Average': self.div_mas[1],
+            '100 Day Div Moving Average': self.div_mas[2],
+            '500 Day Div Moving Average': self.div_mas[3],
+
+            '5 Day Price Moving Average': self.pr_mas[0],
+            '20 Day Price Moving Average': self.pr_mas[1],
+            '100 Day Price Moving Average': self.pr_mas[2],
+            '500 Day Price Moving Average': self.pr_mas[3]
+        }
+        df = pd.DataFrame(data)
+        df.to_csv('market_states.csv')
 
     def warm_up(self):
         # div = []
@@ -135,6 +247,7 @@ class Market(object):
         for i in range(self.warm_up_time):
             self.dividend_value = self.Mechanics.__update_dividend__()
             self.conditions = self.Mechanics.__update_market__()
+            self.catch_market_states()
             condition_str = self.condition_string()
 
             self.price = self.dividend_value / self.model_params['int_rate']
@@ -150,6 +263,7 @@ class Market(object):
             #     in_file.write(condition_str)
             #     in_file.write('\n----------------\n')
             self.Mechanics.__set_price__(self.price)
+
         # data = {"Dividend": div, "Price" :price}
         # df = pd.DataFrame(data=data)
         # print(df)
@@ -272,31 +386,13 @@ class Market(object):
         self.specialist.__set_profit_per_unit__(self.Mechanics.__get_profit_per_unit__)
         self.specialist.__set_agents__(self.population)
 
-    def __get_agents__(self):
-        return self.population
-    def generate_risky_assets(self):
-        for i in range(self.total_risky_asset_size):
-            asset = Assets.RiskyAsset(dividend=self.init_dividend, price=self.init_asset_price, time=0)
-            self.risky_assets.append(asset)
-    def __generate_bond_(self):
-        bond = Assets.Bond(interest_rate=self.interest_rate, price=self.starting_bond_price)
-        self.bonds.append(bond)
-        return bond
-    def birth_asset(self):
-        pop_iter = iter(self.population)
-        for agent in pop_iter:
-            asset = self.risky_assets[0]
-            agent.give_risky_asset(asset)
-
-            self.risky_assets = self.risky_assets[1:]
-        self.remaining_asset_size = len(self.risky_assets)
-
 
 
 def test():
     test_market = Market()
-    test_agents = test_market.__get_agents__()
-    agent = test_agents[0]
+
+    # test_agents = test_market.__get_population__
+    # agent = test_agents[0]
     # print(agent.__get_cash__)
     # mechanics.__update_market__()
     # mechanics.__see_conditions__()

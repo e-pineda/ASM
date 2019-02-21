@@ -27,7 +27,6 @@ class Params(object):
         self.eta_min = .00001
         self.rea = 6.333
         self.reb = 16.6882
-        self.randomSeed = 0
 
         # Agent params
         self.max_bid = 10

@@ -6,21 +6,21 @@ import random
 
 
 class Mechanics(object):
-    def __init__(self):
+    def __init__(self, model_parameters, conditions):
         # important world variables
-        self.moving_averages = 4
-        self.dimensions = 61
-        self.max_history = 500
-        self.up_down_ref = 5
-        self.p_up_down_bit = 42
-        self.ratios = [.25, 0.5, 0.75, 0.875, 1.0, 1.125, 1.25, 1.5, 2.0, 4.0]
+        self.moving_averages = model_parameters['moving_averages']
+        self.dimensions = model_parameters['dimensions']
+        self.max_history = model_parameters['max_history']
+        self.up_down_ref = model_parameters['up_down_ref']
+        self.p_up_down_bit = model_parameters['p_up_down_bit']
+        self.ratios = model_parameters['ratios']
         # -------------------
 
         # MISC. VARIABLES
-        self.int_rate = .1
-        self.history_top = 0
-        self.up_down_top = 0
-        self.risk_neutral = 0
+        self.int_rate = model_parameters['int_rate']
+        self.history_top = model_parameters['history_top']
+        self.up_down_top = model_parameters['up_down_top']
+        self.risk_neutral = model_parameters['risk_neutral']
         # -------------------
 
         #  DIVIDENDS
@@ -33,16 +33,16 @@ class Mechanics(object):
         self.old_dividend = self.dividend
         self.saved_dividend = self.dividend
 
-        self.dividend_up_down = [0 for i in range(self.up_down_ref)]
-        self.div_history = [0 for i in range(self.max_history)]
+        self.dividend_up_down = [0 for i in range(int(self.up_down_ref))]
+        self.div_history = [0 for i in range(int(self.max_history))]
         # -------------------
 
         # PRICE
         self.price = self.baseline / self.int_rate
         self.old_price = self.price
         self.saved_price = self.price
-        self.price_up_down = [0 for i in range(self.up_down_ref)]
-        self.price_history = [0 for i in range(self.max_history)]
+        self.price_up_down = [0 for i in range(int(self.up_down_ref))]
+        self.price_history = [0 for i in range(int(self.max_history))]
         # -------------------
 
         # RATIOS
@@ -53,11 +53,13 @@ class Mechanics(object):
         # ARRAYS
         # Moving Averages
         self.exponential_ma = True
-        self.ma_length = [5, 20, 100, self.max_history]
+        self.ma_length = [5, 20, 100, int(self.max_history)]
 
         self.price_ma = []
         self.old_price_ma = []
         self.div_ma = []
+        self.old_div_ma = []
+        self.interest_ma = []
         self.old_div_ma = []
 
         for i in range(len(self.ma_length)):
@@ -75,14 +77,7 @@ class Mechanics(object):
         # -------------------
 
         #  CONDITIONS
-        # Initialize possible market conditions
-        self.conditions = Conditions.ConditionList()
-        self.load_conditions()
-        # -------------------
-
-        #  FORECAST PARAMS
-        # Initialize possible forecast params
-        self.forecast_params = ForecastParams.Params(self.conditions)
+        self.conditions = conditions
         # -------------------
 
     @property
@@ -118,13 +113,24 @@ class Mechanics(object):
         return self.conditions
 
     @property
-    def __get_forecast_params__(self):
-        params_copy = self.forecast_params.__copy__
-        return params_copy
-
-    @property
     def __get_dividend_object__(self):
         return self.Dividend_obj
+
+    @property
+    def __get_histories__(self):
+        return self.price_history, self.div_history
+
+    @property
+    def __get_mas__(self):
+        return self.price_ma, self.div_ma
+
+    @property
+    def __get_div_ratio__(self):
+        return self.div_ratio
+
+    @property
+    def __get_price_ratio__(self):
+        return self.price_ratio
 
     def __set_dividend_vals__(self, baseline=None, min_dividend=None, max_dividend=None, amplitude=None, period=None):
         self.Dividend_obj.__set_baseline__(baseline)
@@ -197,44 +203,33 @@ class Mechanics(object):
 
         # get indicators of where price & dividend moves
         self.up_down_top = (self.up_down_top + 1) % self.up_down_ref
-        self.price_up_down[self.up_down_top] = self.price > self.old_price
-        self.dividend_up_down[self.up_down_top] = self.dividend > self.old_dividend
+        self.price_up_down[int(self.up_down_top)] = self.price > self.old_price
+        self.dividend_up_down[int(self.up_down_top)] = self.dividend > self.old_dividend
 
         self.history_top = self.history_top + 1 + self.max_history
 
         # add values to moving averages
-        for i in range(self.moving_averages):
+        for i in range(int(self.moving_averages)):
             position = (self.history_top - self.ma_length[i]) % self.max_history
 
             self.price_ma[i].__add__(self.price)
             self.div_ma[i].__add__(self.dividend)
 
-            self.old_price_ma[i].__add__(self.price_history[position])
-            self.old_div_ma[i].__add__(self.div_history[position])
+            self.old_price_ma[i].__add__(self.price_history[int(position)])
+            self.old_div_ma[i].__add__(self.div_history[int(position)])
 
         # add values to history arrays
         self.history_top %= self.max_history
-        self.price_history[self.history_top] = self.price
-        self.div_history[self.history_top] = self.dividend
+        self.price_history[int(self.history_top)] = self.price
+        self.div_history[int(self.history_top)] = self.dividend
 
         self.__gen_conditions__()
         return self.conditions
     # -------------------
+
     def __see_conditions__(self):
         for condition in self.conditions:
             print(condition.__get_id__, condition.__get_name__, condition.__getstate__)
-
-    def load_conditions(self):
-        with open('conditions.txt') as infile:
-            index = 0
-            for condition in infile:
-                try:
-                    name, description, *rest = condition.replace("{", '').replace("}", "").replace('"', '').split(',')
-                except Exception as e:
-                    pass
-                new_cond = Conditions.Condition(index, name, description)
-                self.conditions.__add__(new_cond)
-                index += 1
 
     def __gen_conditions__(self):
         self.conditions[0].__setstate__(True)
@@ -243,8 +238,8 @@ class Mechanics(object):
         index = 3
 
         temp = self.up_down_top + self.up_down_ref
-        for i in range(0, self.up_down_ref):
-            if self.dividend_up_down[temp % self.up_down_ref] == 0:
+        for i in range(0, int(self.up_down_ref)):
+            if self.dividend_up_down[int(temp % self.up_down_ref)] == 0:
                 abool = False
             else:
                 abool = True
@@ -254,41 +249,41 @@ class Mechanics(object):
             temp -= 1
 
         # If dividend moving averages are moving up or down
-        for i in range(0, self.moving_averages):
+        for i in range(0, int(self.moving_averages)):
             self.conditions[index].__setstate__(self.div_ma[i].__get_ma__() > self.old_div_ma[i].__get_ma__())
             # print(index, "test__8 - 11", self.conditions[index].__get_name__)
             index += 1
 
         # If current dividend is greater than the moving average
-        for i in range(0, self.moving_averages):
+        for i in range(0, int(self.moving_averages)):
             self.conditions[index].__setstate__(self.dividend > self.div_ma[i].__get_ma__())
             # print(index, "test__12 - 15", self.conditions[index].__get_name__)
             index += 1
 
         # if dividend[i] > dividend [j]
-        for i in range(0, self.moving_averages - 1):
-            for j in range(i+1, self.moving_averages):
+        for i in range(0, int(self.moving_averages) - 1):
+            for j in range(i+1, int(self.moving_averages)):
                 self.conditions[index].__setstate__(self.div_ma[i].__get_ma__() > self.div_ma[j].__get_ma__())
                 # print(index, "test__15 - 21", self.conditions[index].__get_name__)
                 index += 1
 
         # Dividend as multiple of mean dividend
-        multiple = self.dividend / self.dividend_scale
+        self.div_ratio = self.dividend / self.dividend_scale
         for i in range(0, len(self.ratios)):
-            self.conditions[index].__setstate__(multiple > self.ratios[i])
+            self.conditions[index].__setstate__(self.div_ratio > self.ratios[i])
             # print(index, "test__22 - 31", self.conditions[index].__get_name__)
             index += 1
 
         # Price as multiple of dividend/intrate. Use olddividend
-        multiple = (self.price * self.int_rate) / self.old_dividend
+        self.price_ratio = (self.price * self.int_rate) / self.old_dividend
         for i in range(0, len(self.ratios)):
-            self.conditions[index].__setstate__(multiple > self.ratios[i])
+            self.conditions[index].__setstate__(self.price_ratio > self.ratios[i])
             # print(index, "test__32 - 41", self.conditions[index].__get_name__)
             index += 1
 
         temp = self.up_down_top + self.up_down_ref
-        for i in range(0, self.up_down_ref):
-            if self.price_up_down[temp % self.up_down_ref] == 0:
+        for i in range(0, int(self.up_down_ref)):
+            if self.price_up_down[int(temp % self.up_down_ref)] == 0:
                 abool = False
             else:
                 abool = True
@@ -298,20 +293,20 @@ class Mechanics(object):
             temp -= 1
 
         # Price moving averages went up or down
-        for i in range(0, self.moving_averages):
+        for i in range(0, int(self.moving_averages)):
             self.conditions[index].__setstate__(self.price_ma[i].__get_ma__() > self.old_price_ma[i].__get_ma__())
             # print(index, "test__47 - 50", self.conditions[index].__get_name__)
             index += 1
 
         # Price > MA[j]
-        for i in range(0, self.moving_averages):
+        for i in range(0, int(self.moving_averages)):
             self.conditions[index].__setstate__(self.price > self.price_ma[i].__get_ma__())
             # print(index, "test__51 - 54", self.conditions[index].__get_name__)
             index += 1
 
         # if price[i] > price[j]
-        for i in range(0, self.moving_averages - 1):
-            for j in range(i + 1, self.moving_averages):
+        for i in range(0, int(self.moving_averages - 1)):
+            for j in range(i + 1, int(self.moving_averages)):
                 self.conditions[index].__setstate__(self.price_ma[i].__get_ma__() > self.old_price_ma[j].__get_ma__())
                 # print(index, "test__55 - 60", self.conditions[index].__get_name__)
                 index += 1

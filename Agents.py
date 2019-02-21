@@ -204,7 +204,7 @@ class Agent(object):
         self.forecasting_rules.append(forecast)
         self.strongest_rule = forecast
 
-        for i in range(num_forecasts):
+        for i in range(int(num_forecasts)):
             # print("\n---INIT FORECASTS---")
             forecast = self.__gen_forecast__()
             forecast = self.randomize_conditions(forecast)
