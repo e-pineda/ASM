@@ -1,0 +1,96 @@
+World Variables
+	moving_averages = 4
+        dimensions = 61
+        max_history = 500
+        up_down_ref = 5
+        p_up_down_bit = 42
+	history_top = 0
+	up_down_top = 0
+	risk_neutral = 0
+        ratios = .25 0.5 0.75 0.875 1.0 1.125 1.25 1.5 2.0 4.0
+
+
+Model Parameters
+	num_agents = 25
+        init_holding = 1
+        init_cash = 20000
+        min_holding = -5
+        min_cash = -2000
+        int_rate = .1
+	prob_int_rate = 0.01
+	min_rate = 0
+	max_rate = .99
+
+	baseline = 10
+        min_dividend = .00005
+        max_dividend = 100
+        amplitude = .0873
+        period = 19.5
+        exponentialMAs = 1
+
+	max_price = 999999
+        min_price = .001
+        taup = 50
+        sp_type = 1
+        max_iterations = 20
+        min_excess = .01
+        eta = .0005
+        eta_max = .05
+        eta_min = .00001
+        rea = 6.333
+        reb = 16.6882
+        randomSeed = 0
+
+        max_bid = 10
+        max_dev = 500
+
+
+Forecast Parameters
+	num_forecasts = 100
+        cond_bits = 12
+        min_count = 2
+        individual = 1
+
+        tau = 75
+        lamb = .5
+        max_bid = 10
+        bit_prob = .1
+        sub_range = 1
+
+        a_min = .7
+        a_max = 1.2
+
+        b_min = 0
+        b_max = 0
+
+        c_min = -10
+        c_max = 19
+
+       	new_forecast_var = 4
+        init_var = 4
+        bit_cost = .005
+
+        max_dev = 500
+        pool_fraction = .2
+        new_fraction = .2
+
+        n_nulls = 4
+        long_time = 4000
+
+        first_ga_time = 100
+        ga_freq = 1000
+
+        self.n_pool_max = -1
+        self.n_new_max = -1
+        self.n_cond_max = -1
+        
+
+        self.end_list = -2
+        self.all = -3
+        self.set_prob = -4
+        self.bad_input = -5
+        self.not_found = -6
+        self.eq = 0
+        self.null_bit = -1
+
+        
