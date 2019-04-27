@@ -20,6 +20,9 @@ import numpy as np
 
 #     Calculate risk aversion based on holdings
 
+
+# Graph
+#     agent cash,
 class Market(object):
     def __init__(self):
         # Initialize storage for market performance
@@ -342,9 +345,8 @@ class Market(object):
         data = {"Price": price, "Dividend": div, "Volume": volumes, "Matches": matches, "Attempt Buys": attempt_buys,
                 "Attempt Sells": attempt_sells}
         df = pd.DataFrame(data=data)
-        writer = pd.ExcelWriter('output.xlsx', engine='xlsxwriter')
-        df.to_csv('Sheet1', engine='xlsxwriter')
-        writer.save()
+        df.to_csv('output.txt', sep='\t')
+
         
     def change_int_rate(self):
         choice = random.randint(1,2)

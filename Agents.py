@@ -464,11 +464,11 @@ class Agent(object):
 
         # LIMIT MAX BID
         if self.demand > self.forecast_params["max_bid"]:
-            self.demand = self.forecast_params["max_bid"]
+            self.demand = self.forecast_params["max_bid"] * .8
             slope = 0
 
         elif self.demand < -self.forecast_params["max_bid"]:
-            self.demand = -self.forecast_params["max_bid"]
+            self.demand = -self.forecast_params["max_bid"] * .8
             slope = 0
 
         slope = self.constrain_demand(slope, trial_price)
@@ -481,7 +481,7 @@ class Agent(object):
         if self.demand > 0:
             cash_to_bankruptcy = self.cash - self.min_cash
             if forecast_price > cash_to_bankruptcy:
-                forecast_price = cash_to_bankruptcy
+                forecast_price = cash_to_bankruptcy * .8
 
         if self.demand < 0:
             pass

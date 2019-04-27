@@ -172,9 +172,7 @@ class MarketClearer(object):
         self.volume = abs(offer_total) if bid_total > offer_total else bid_total
         self.bid_fraction = self.volume / bid_total if bid_total > 0 else 0
         self.offer_fraction = self.volume / offer_total if offer_total > 0 else 0
-        for agent in self.agents:
-            print("ID: ", agent.__get_id__, "; DEMAND: ", agent.__get_demand__, "; CASH: ", agent.__get_cash__,
-                  "; POSITION: ", agent.__get_pos__, "; RISK LEVEL: ", agent.__get_curr_risk_aversion__)
+
 
         return trial_price, matches
 
