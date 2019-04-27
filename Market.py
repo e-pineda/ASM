@@ -3,13 +3,22 @@ import Assets
 import MarketMechanics
 import Agents
 import Specialist
-import ModelParams
 import ForecastParams
 import Conditions
 import csv
 import pandas as pd
 from itertools import *
+import sys
+import random
+import numpy as np
 
+# IMPLEMENT CHANGING RISK ADVERSENESS
+#     Generate normal distribution of numbers ranging from
+#         0.31--> risk doesnt matter, .5--> risk neutral, .99--> risk matters a lot  ----------MAX---------- Holdings beyond 3.2
+#         0.16--> risk doesnt matter, .35--> risk neutral, .84--> risk matters a lot  ----------MID---------- Holdings between 1.6 and 3.2 -.15
+#         0.01--> risk doesnt matter, .2--> risk neutral, .69--> risk matters a lot  ----------MIN---------- Holdings up to 1.6 -.3
+
+#     Calculate risk aversion based on holdings
 
 class Market(object):
     def __init__(self):
@@ -21,6 +30,10 @@ class Market(object):
         # Initialize model parameters
         self.model_params = {}
         self.__load_model_params__()
+        self.prob_int_rate_change = self.model_params.get('prob_int_rate')
+        self.int_rate = self.model_params.get('int_rate')
+        self.min_int_rate = self.model_params.get("min_rate")
+        self.max_int_rate = self.model_params.get("max_rate")
 
         # Initialize conditions
         self.conditions = Conditions.ConditionList()
@@ -43,6 +56,7 @@ class Market(object):
 
         # Initialize population space
         self.population = []
+        self.risk_aversion_list = self.__gen_risk_dist__()
         self.__set_agent_values__()
 
         # Initialize market-maker
@@ -51,12 +65,12 @@ class Market(object):
 
         # Clock
         self.curr_time = 0
-        self.time_duration = 1000
+        self.time_duration = 5000
         self.warm_up_time = 501
 
         # Warm-Up and run
         self.warm_up()
-        # self.run_market()
+        self.run_market()
         self.populate_records()
 
     @property
@@ -82,6 +96,18 @@ class Market(object):
     @property
     def __get_time__(self):
         return self.curr_time
+
+    @property
+    def __gen_agent_risk__(self):
+        risk_preference = random.choice(self.risk_aversion_list)
+        del self.risk_aversion_list[self.risk_aversion_list.index(risk_preference)]
+        return risk_preference
+
+    # generates normal distribution ranging from -1 to 1
+    @staticmethod
+    def __gen_risk_dist__():
+        x = list(np.linspace(.31, .99, 100))
+        return x
 
     def __load_model_params__(self):
         with open("model_params.txt", mode='r') as in_file:
@@ -127,13 +153,6 @@ class Market(object):
         self.forecast_params['n_new'] = self.forecast_params['num_forecasts'] * self.forecast_params['new_fraction']
 
         self.forecast_params['prob_list'] = [self.forecast_params['bit_prob'] for i in range(int(self.forecast_params['cond_bits']))]
-
-        monitor_conditions = ["pr/d>1/4", "pr/d>1/2", "pr/d>3/4", "pr/d>7/8", "pr/d>1", "pr/d>9/8", "p>p5",
-                              "p>p20", "p>p100", "p>p500", "on", "off"]
-        bit_list = [None for i in range(len(monitor_conditions))]
-        for i, name in enumerate(monitor_conditions):
-            bit_list[i] = self.conditions.__get_condition_id__(name)
-        self.forecast_params['bit_list'] = bit_list
 
     def __load_conditions__(self):
         with open('conditions.txt') as infile:
@@ -183,8 +202,10 @@ class Market(object):
         min_cash = self.model_params['min_cash']
 
         for i in range(int(self.model_params['num_agents'])):
-            agent = Agents.Agent(id=i, name='Agent '+str(i), int_rate=int_rate, min_holding=min_holding, init_cash=init_cash, position=position,
-                          forecast_params=self.forecast_params, dividend=self.init_dividend, price=self.init_asset_price, conditions=self.conditions, min_cash=min_cash)
+            agent = Agents.Agent(id=i, name='Agent '+str(i), int_rate=int_rate, min_holding=min_holding, 
+                                 init_cash=init_cash, position=position, forecast_params=self.forecast_params, 
+                                 dividend=self.init_dividend, price=self.init_asset_price, conditions=self.conditions, 
+                                 min_cash=min_cash, risk_aversion=self.__gen_agent_risk__)
             agent.__set_holdings__()
             self.population.append(agent)
 
@@ -242,8 +263,6 @@ class Market(object):
         df.to_csv('market_states.csv')
 
     def warm_up(self):
-        # div = []
-        # price = []
         for i in range(self.warm_up_time):
             self.dividend_value = self.Mechanics.__update_dividend__()
             self.conditions = self.Mechanics.__update_market__()
@@ -251,22 +270,7 @@ class Market(object):
             condition_str = self.condition_string()
 
             self.price = self.dividend_value / self.model_params['int_rate']
-
-            # div.append(self.dividend_value)
-            # price.append((self.price))
-
-            # data_add.append([i, self.dividend_value, self.price])
-
-
-            # with open("conditions_output.txt", mode='a') as in_file:
-            #     in_file.write("TIME: " + str(i))
-            #     in_file.write(condition_str)
-            #     in_file.write('\n----------------\n')
             self.Mechanics.__set_price__(self.price)
-
-        # data = {"Dividend": div, "Price" :price}
-        # df = pd.DataFrame(data=data)
-        # print(df)
         print("WARM UP COMPLETE")
 
     def condition_string(self):
@@ -284,8 +288,16 @@ class Market(object):
         sell = []
         attempt_buys = []
         attempt_sells = []
+        matches = []
         time = []
         for i in range(self.time_duration):
+            print("TIME", self.curr_time)
+            
+            # CHANGE INT RATE
+            # chance_new_int_rate = random.randint(0, 10)/100
+            # if i >= 2500 and chance_new_int_rate < self.prob_int_rate_change:
+            #     self.change_int_rate()
+
             # Give agents their information
             self.give_info()
 
@@ -293,7 +305,8 @@ class Market(object):
             self.new_dividend()
 
             # Credit earnings and pay taxes
-            self.credits_and_taxes()
+            if self.curr_time > 1:
+                self.credits_and_taxes()
 
             # Update the Market
             self.conditions = self.Mechanics.__update_market__()
@@ -301,33 +314,18 @@ class Market(object):
             # Prepare agents for trades
             self.prepare_trades()
 
-            # Calculate the new price
-            self.new_price()
+            # Calculate the new price and perform trades
+            self.price, curr_matches = self.specialist.perform_trades()
+            self.Mechanics.__set_price__(self.price)
 
             # Complete the trades
-            buys, sells, at_sells, at_buys = self.specialist.complete_trades()
+            self.specialist.__set_agents__(self.population)
+            buys, sells, at_sells, at_buys, self.population = self.specialist.complete_trades()
             volume = self.specialist.__get_volume__
 
             # Update agent performance
             self.update_performances()
 
-            # conditions = self.Mechanics.__get_conditions__
-            # condition_str = self.condition_string()
-
-
-            # with open("simulation.txt", mode='a') as in_file:
-            #     in_file_writer = csv.writer(in_file, delimiter=',')
-            #     in_file_writer.writerow(["Time: " + str(i), "Dividend_value: " + str(self.dividend_value),
-            #                              "Price: " + str(self.price), "Volume: " + str(volume), "Buys: " + str(buys),
-            #                              "Attempted Buys: " + str(at_buys), "Sells: " + str(sells),
-            #                              "Attempted Sells: " + str(attempt_sells)])
-            #
-            # with open("simulation_conditions_output.txt", mode='a') as in_file:
-            #     in_file.write("TIME: " + str(i))
-            #     in_file.write(condition_str)
-            #     in_file.write('\n----------------\n')
-            # print(self.curr_time)
-            # self.agent_info()
             div.append(self.dividend_value)
             price.append(self.price)
             volumes.append(volume)
@@ -336,14 +334,39 @@ class Market(object):
             attempt_buys.append(at_buys)
             attempt_sells.append(at_sells)
             time.append(i)
-            # print(i)
+            matches.append(curr_matches)
+            
             self.curr_time += 1
+            # print("---------------------------")
             # break
-        data = {"Dividend": div, "Price" : price, "Volume" : volumes, "Buys" : buy, "Sells" : sell, "Attempt Buys" : attempt_buys, "Attempt Sells" : attempt_sells}
+        data = {"Price": price, "Dividend": div, "Volume": volumes, "Matches": matches, "Attempt Buys": attempt_buys,
+                "Attempt Sells": attempt_sells}
         df = pd.DataFrame(data=data)
         writer = pd.ExcelWriter('output.xlsx', engine='xlsxwriter')
-        df.to_excel(writer, 'Sheet1', engine='xlsxwriter')
+        df.to_csv('Sheet1', engine='xlsxwriter')
         writer.save()
+        
+    def change_int_rate(self):
+        choice = random.randint(1,2)
+        if choice == 1:
+            new_int_rate = self.int_rate - 0.01
+        elif choice == 2:
+            new_int_rate = self.int_rate + 0.01
+        # new_int_rate = self.int_rate - .01
+
+        if new_int_rate <= self.min_int_rate:
+            new_int_rate = self.min_int_rate
+        elif new_int_rate >= self.max_int_rate:
+            new_int_rate = self.max_int_rate
+        self.int_rate = new_int_rate
+
+        self.Mechanics.__set_int_rate__(self.int_rate)
+        self.specialist.__set_int_rate__(self.int_rate)
+        for agent in self.population:
+            agent.__set_int_rate__(self.int_rate)
+
+        print("NEW INTEREST RATE", self.int_rate)
+        # wait = input("WAITING: ")
 
     def new_dividend(self):
         self.dividend_value = self.Mechanics.__update_dividend__()
@@ -355,11 +378,6 @@ class Market(object):
     def prepare_trades(self):
         for agent in self.population:
             agent.prepare_trading()
-
-    def new_price(self):
-        self.price = self.specialist.perform_trades()
-        self.Mechanics.__set_price__(self.price)
-        # print("NEW PRICE", self.price)
 
     def update_performances(self):
         for agent in self.population:

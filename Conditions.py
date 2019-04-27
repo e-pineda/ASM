@@ -72,7 +72,7 @@ class ConditionList(object):
     def __getitem__(self, item):
         return self.conditions[item]
 
-    def __get_condition_id__(self, name):
+    def __get_condition_name__(self, name):
         for condition in self.conditions:
             if condition.__get_name__ == name:
                 return condition.__get_id__

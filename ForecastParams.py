@@ -76,11 +76,10 @@ class Params(object):
                              "allbits": self.all, "p": self.set_prob, "P": self.set_prob, "???": self.bad_input,
                              "Null": self.not_found}
 
-        self.monitor_conditions = ["pr/d>1/4", "pr/d>1/2", "pr/d>3/4", "pr/d>7/8", "pr/d>1", "pr/d>9/8", "p>p5",
-                                   "p>p20", "p>p100", "p>p500", "on", "off"]
-        self.bit_list = [None for i in range(len(self.monitor_conditions))]
-        self.__gen_bit_list__()
-        self.prob_list = [self.bit_prob for i in range(self.cond_bits)]
+        # self.possible_conditions = ["on", "off"]
+        # self.bit_list = [None for i in range(len(self.monitor_conditions))]
+        # self.__gen_bit_list__()
+        # self.prob_list = [self.bit_prob for i in range(self.cond_bits)]
 
     @property
     def __get_prob_list__(self):
@@ -101,6 +100,7 @@ class Params(object):
             self.bit_list[i] = new_list[i]
 
     def __gen_bit_list__(self):
+        conditions = ['on', 'off']
         for i, name in enumerate(self.monitor_conditions):
             self.bit_list[i] = self.conditions.__get_condition_id__(name)
             # print("Counter: ", i, "Name: ", name, "ID: ", self.bit_list[i])

@@ -132,6 +132,9 @@ class Mechanics(object):
     def __get_price_ratio__(self):
         return self.price_ratio
 
+    def __get_old_price__(self):
+        return self.old_price
+
     def __set_dividend_vals__(self, baseline=None, min_dividend=None, max_dividend=None, amplitude=None, period=None):
         self.Dividend_obj.__set_baseline__(baseline)
         self.Dividend_obj.__set_min_dividend__(min_dividend)

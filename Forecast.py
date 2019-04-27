@@ -2,7 +2,8 @@ import random
 
 
 class Forecast(object):
-    def __init__(self, forecast_params):
+    def __init__(self, forecast_params, id):
+        self.id = id
         self.forecast_params = forecast_params
         self.condition_list = self.forecast_params["bit_list"]
         self.max_bits = 80
@@ -34,10 +35,11 @@ class Forecast(object):
         self.cond_words = self.forecast_params["cond_words"]
         self.cond_bits = self.forecast_params["cond_bits"]
         self.n_nulls = self.forecast_params["n_nulls"]
-
+        
     # ----------------------
     def __init_monitor__(self):
         self.conditions = {condition: 0 for condition in self.condition_list}
+        # print("INIT MONITOR LIST: ", self.conditions)
 
     def __init_mask__(self):
         for bit in range(self.max_bits):
@@ -72,9 +74,18 @@ class Forecast(object):
         return self.conditions
 
     def __get_condition__(self, id):
-        for condition, value in self.conditions.items():
+        # print("CONDITION LIST: ", self.conditions)
+        for condition in self.conditions:
             if condition == id:
-                return condition, value
+                # print("CONDITION: ",condition, self.conditions.get(id))
+                return condition, self.conditions.get(id)
+
+    def __get_condition_by_pos__(self, pos):
+        for counter, condition in enumerate(self.conditions):
+            # print("COUNTER: ", counter, condition, self.conditions.get(condition))
+            if counter == pos:
+                # print("FINAL COUNTER: ", counter, condition, self.conditions.get(condition))
+                return condition, self.conditions.get(condition)
 
     @property
     def __get_values__(self):
@@ -188,6 +199,10 @@ class Forecast(object):
     @property
     def __get_forecast__(self):
         return self.forecast
+
+    @property
+    def __get_id__(self):
+        return self.id
 
     def increment_specificity(self):
         self.specificity += 1

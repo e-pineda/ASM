@@ -3,15 +3,17 @@ import itertools
 import Assets
 import Conditions
 import Forecast
+import random
 
 
 class Agent(object):
     def __init__(self, id=None, name=None, agent_type=None, forecast_params=None, conditions=None,
-                 price=None, dividend=None, int_rate=None, min_holding=None, init_cash=None, position=None, min_cash=None):
+                 price=None, dividend=None, int_rate=None, min_holding=None, init_cash=None, position=None,
+                 min_cash=None, risk_aversion=None):
         self.id = id
         self.name = name
         self.agent_type = agent_type
-        self.tolerance = .8
+        self.tolerance = .75
 
         self.demand = None
         self.profit = None
@@ -25,8 +27,8 @@ class Agent(object):
         self.int_rate_ep = int_rate + 1
         self.price = price
         self.dividend = dividend
-
-        # self.risk_preference =
+        self.max_risk_aversion = risk_aversion
+        self.curr_risk_aversion = None
 
         self.time = 0
         self.forecast_value = None
@@ -39,6 +41,10 @@ class Agent(object):
         self.offset = None
         self.divisor = None
         self.ga_count = 0
+        self.last_rule_id = 101
+
+        #MISTAKE THRESHOLD
+        self.mistake_threshold = .01
 
         # Copy of conditions
         self.world_conditions = {}
@@ -54,11 +60,7 @@ class Agent(object):
         self.strongest_rule = None
         self.__init_forecasts__()
 
-        # Assets
-        self.risky_assets = Assets.RiskyAssets()
-        self.bonds = Assets.Bonds()
-
-    # --------------------------
+    # -------------------------
     @property
     def __get_strongest_rule__(self):
         return self.strongest_rule
@@ -130,6 +132,10 @@ class Agent(object):
     @property
     def __get_forecasts__(self):
         return self.forecasting_rules
+
+    @property
+    def __get_curr_risk_aversion__(self):
+        return self.curr_risk_aversion
     # --------------------------
 
     def __set_pos__(self, new_position):
@@ -200,17 +206,23 @@ class Agent(object):
         self.lagged_forecast = self.mean
 
         # Default rule with all 0's
-        forecast = self.__gen_forecast__()
+        forecast = self.__gen_forecast__(0)
         self.forecasting_rules.append(forecast)
         self.strongest_rule = forecast
 
         for i in range(int(num_forecasts)):
-            # print("\n---INIT FORECASTS---")
-            forecast = self.__gen_forecast__()
+            forecast = self.__gen_forecast__(i+1)
             forecast = self.randomize_conditions(forecast)
             self.forecasting_rules.append(forecast)
 
-    def __gen_forecast__(self):
+    def __gen_bit_list__(self):
+        bit_list = [0, 1]
+        condition_ids = random.sample(range(2, 60), 10)
+        for id in condition_ids:
+            bit_list.append(id)
+        return bit_list
+
+    def __gen_forecast__(self, id):
         a_val = self.forecast_params["a_min"] + .5 * (1 - self.forecast_params["sub_range"]) * self.forecast_params[
             "a_range"]
         a_subrange = self.forecast_params["sub_range"] * self.forecast_params["a_range"]
@@ -226,7 +238,8 @@ class Agent(object):
         c_subrange = self.forecast_params["sub_range"] * self.forecast_params["c_range"]
         c_rand = c_val + random.uniform(0, 1) * c_subrange
 
-        forecast_obj = Forecast.Forecast(self.forecast_params)
+        self.forecast_params['bit_list'] = self.__gen_bit_list__()
+        forecast_obj = Forecast.Forecast(self.forecast_params, id)
 
         forecast_obj.__set_forecast__(0)
         forecast_obj.__set_lagged_forecast__(self.mean)
@@ -243,12 +256,6 @@ class Agent(object):
         bit_list = self.forecast_params["bit_list"]
         prob_list = self.forecast_params["prob_list"]
 
-        # print("---RANDOM FORECASTS---")
-        # print("Prob List: ", prob_list)
-        # print("Conditions: ", forecast_object.__get_conditions__)
-        # print("Spec Factor: ", forecast_object.__get_spec_factor__)
-        # print('------')
-
         for counter, id in enumerate(forecast_object.__get_conditions__):
             if id == 0 or id == 1:
                 continue
@@ -261,13 +268,12 @@ class Agent(object):
                 forecast_object.increment_specificity()
 
         forecast_object.update_spec_factor()
-        # print("Conditions: ", forecast_object.__get_conditions__, len(forecast_object.__get_conditions__))
-        # print("Spec Factor: ", forecast_object.__get_spec_factor__)
         return forecast_object
 
     # --------------------------
     def credit_earnings_and_taxes(self):
         self.cash = (self.price * self.int_rate - self.dividend) * self.position
+
         if self.cash < self.min_cash:
             self.cash = self.min_cash
 
@@ -277,6 +283,7 @@ class Agent(object):
         # if trader wants to buy
         if self.demand > 0:
             if self.demand*trial_price > self.cash - self.min_cash:
+
                 if self.cash - self.min_cash > 0:
                     self.demand = self.cash - self.min_cash / trial_price
                     slope = -self.demand / trial_price
@@ -286,10 +293,11 @@ class Agent(object):
 
         # if trader wants to sell
         elif self.demand < 0 and self.demand + self.position < self.min_holding:
+
             self.demand = self.min_holding - self.position
             slope = 0
-
-        return slope, trial_price
+            # print("AGENT ", self.id, " WANTS TO SELL with DEMAND ", self.demand)
+        return slope
     # --------------------------
 
     def format_world_conditions(self):
@@ -325,14 +333,25 @@ class Agent(object):
         self.update_active_list()
 
         # Find the best forecast
-        for forecast in self.active_rules:
+        for counter, forecast in enumerate(self.active_rules):
+            skip_factor = random.uniform(0, 1)
+            mistake_factor = random.uniform(0, 1)
             forecast.__set_last_active__(self.time)
 
             forecast.increment_count()
             if forecast.__get_count__ >= min_count:
                 n_active = True
 
+                if mistake_factor <= self.mistake_threshold:
+                    # print("MISTAKE HIT w/ FACTORS: ", skip_factor, mistake_factor)
+                    min_var = forecast.__get_real_variance__
+                    best_forecast = forecast
+                    break
+
                 if forecast.__get_real_variance__ < min_var:
+                    if skip_factor <= self.mistake_threshold:
+                        # print("SKIP HIT w/ FACTORS: ", skip_factor, mistake_factor)
+                        continue
                     min_var = forecast.__get_real_variance__
                     best_forecast = forecast
 
@@ -340,10 +359,9 @@ class Agent(object):
         if n_active:
             self.pd_coefficient = best_forecast.__get_a__
             self.offset = (best_forecast.__get_b__ * self.dividend) + best_forecast.__get_c__
-            if self.forecast_params["individual"] == 1:
-                forecast_var = best_forecast.__get_variance__
-            else:
-                forecast_var = self.variance
+            forecast_var = best_forecast.__get_variance__
+            # print("BEST FORECAST TEST with AGENT", self.id, "BEST FORECAST ID: ", best_forecast.__get_id__, "USED ",
+            #       best_forecast.__get_last_used__)
             best_forecast.__set_last_used__(self.time)
 
         # no forecasts are active
@@ -365,7 +383,28 @@ class Agent(object):
                     self.offset = self.mean
 
                 forecast_var = self.variance
-            self.divisor = self.forecast_params["lamb"] * forecast_var
+
+        # self.divisor = self.forecast_params["lamb"] * forecast_var
+        self.calculate_risk_aversion()
+        self.divisor = self.curr_risk_aversion * forecast_var
+
+    def calculate_risk_aversion(self):
+        if -1.6 <= self.position <= 1.6:
+            risk_factor = random.uniform(0, .3)
+            self.curr_risk_aversion = self.max_risk_aversion - risk_factor
+            # if self.id == 0:
+            #     print("CASE 1: ", self.position,self.curr_risk_aversion)
+
+        elif -3.2 <= self.position < -1.6 or 1.6 < self.position <= 3.2:
+            risk_factor = random.uniform(0, .15)
+            self.curr_risk_aversion = self.max_risk_aversion - risk_factor
+            # if self.id == 0:
+                # print("CASE 2: ", self.position, self.curr_risk_aversion)
+
+        elif 3.2 < self.position < -3.2:
+            self.curr_risk_aversion = self.max_risk_aversion
+            # if self.id == 0:
+            #     print("CASE 3: ", self.position,self.curr_risk_aversion)
 
     def update_active_list(self):
         self.old_active_rules = self.active_rules
@@ -401,7 +440,7 @@ class Agent(object):
 
             if matches / len(forecast_conditions) >= self.tolerance:
                 self.active_rules.append(forecast)
-        # print("UPDATE TEST", len(self.active_rules))
+        # print("UPDATE TEST with Agent ID", self.id, len(self.active_rules))
 
     def obtain_world_conditions(self, forecast_conditions):
         keys_forecast = set(forecast_conditions)
@@ -423,7 +462,6 @@ class Agent(object):
             self.demand = -(trial_price * self.int_rate_ep / self.divisor + self.position)
             slope = -self.int_rate_ep / self.divisor
 
-
         # LIMIT MAX BID
         if self.demand > self.forecast_params["max_bid"]:
             self.demand = self.forecast_params["max_bid"]
@@ -433,8 +471,21 @@ class Agent(object):
             self.demand = -self.forecast_params["max_bid"]
             slope = 0
 
-        slope, trial_price = self.constrain_demand(slope, trial_price)
-        return slope, trial_price
+        slope = self.constrain_demand(slope, trial_price)
+        # CONSTRAIN FORECAST, WHICH IS THE AGENT'S PRICE, HERE
+        forecast = self.constrain_forecast(forecast)
+        return slope, forecast
+
+    def constrain_forecast(self, forecast_price):
+        # print("AGENT ID: ", self.id, '; CASH: ', self.cash, "; HOLDINGS: ", self.position, "; DEMAND: ", self.demand, "; FORECAST: ", forecast_price)
+        if self.demand > 0:
+            cash_to_bankruptcy = self.cash - self.min_cash
+            if forecast_price > cash_to_bankruptcy:
+                forecast_price = cash_to_bankruptcy
+
+        if self.demand < 0:
+            pass
+        return forecast_price
 
     def update_performance(self):
         tau = self.forecast_params['tau']
@@ -477,18 +528,11 @@ class Agent(object):
                     real_var = (1 - c) * forecast.__get_real_variance__ + c * self.deviation
                     forecast.__set_real_variance__(real_var)
 
-    def bit_distribution(self):
-        pass
-
-    def f_moments(self):
-        pass
-    # --------------------------
-
     # GA
 
     # Add new rules and
     def activate_ga(self):
-        print("ENTERED GA")
+        # print("ENTERED GA")
         self.ga_count += 1
 
         # Sort current rules based on their strength and find median strength
@@ -514,7 +558,10 @@ class Agent(object):
         unsorted_rules = []
         for index, forecast in enumerate(self.forecasting_rules):
             # BIG ###############################################################
-            if forecast.__get_count__ != 0:
+            if forecast.__get_count__ == 0:
+                continue
+
+            elif forecast.__get_count__ != 0:
                 if forecast.__get_spec_factor__ is None:
                     forecast.update_spec_factor()
                 strength = self.forecast_params['max_dev'] - forecast.__get_variance__ + forecast.__get_spec_factor__
@@ -524,7 +571,6 @@ class Agent(object):
                     unsorted_rules.append(forecast)
 
         sorted_rules = sorted(unsorted_rules, key=lambda forecast:forecast.__get_strength__)
-        # print(len(sorted_rules))
         median_strength = sorted_rules[int(len(sorted_rules) / 2)].__get_strength__
         return sorted_rules, median_strength
 
@@ -585,23 +631,43 @@ class Agent(object):
         parent_1 = parents[0]
         parent_2 = parents[1]
 
-        # print("CROSSOVER")
-        new_forecast = Forecast.Forecast(self.forecast_params)
-        new_conditions = new_forecast.__get_conditions__
+        new_forecast = Forecast.Forecast(self.forecast_params, self.last_rule_id)
+        self.last_rule_id += 1
+        new_conditions = {}
+
+        # print("PARENT 1: ", parent_1.__get_count__)
+        # print("PARENT 2: ", parent_2.__get_count__)
 
         # RANDOMIZE BITS
-        for bit in new_conditions.keys():
+        for counter in range(12):
             parent_choice = random.randint(1, 2)
             if parent_choice == 1:
-                bit_id, bit_value = parent_1.__get_condition__(bit)
-                new_forecast.__set_condition_val__(bit, new_value=bit_value)
+                bit_id, bit_value = parent_1.__get_condition_by_pos__(counter)
+                if bit_id in new_conditions:
+                    bit_id, bit_value = parent_2.__get_condition_by_pos__(counter)
+
             elif parent_choice == 2:
-                bit_id, bit_value = parent_2.__get_condition__(bit)
-                new_forecast.__set_condition_val__(bit, new_value=bit_value)
+                bit_id, bit_value = parent_2.__get_condition_by_pos__(counter)
+                if bit_id in new_conditions:
+                    bit_id, bit_value = parent_1.__get_condition_by_pos__(counter)
+
+            if bit_id in new_conditions:
+                parent_set = list(set(list(parent_1.__get_conditions__.keys()) + list(parent_2.__get_conditions__.keys())))
+                conditions = [i for i in range(2, 61)]
+                available = [i for i in conditions if i not in parent_set]
+                # print("PARENT: ", parent_set, available)
+                bit_id = random.choice(available)
+                bit_value = random.randint(0, 2)
+                # print("HIT", bit_id, bit_value)
+            new_conditions[bit_id] = bit_value
 
             if bit_value > 0:
                 new_forecast.increment_specificity()
 
+        new_forecast.__set_conditions__(new_conditions)
+        # wait = input("WAIT: ")
+        # print("------------------")
+        
         # Combine forecast parameters
         if parent_1.__get_variance__ > 0 and parent_2.__get_variance__ > 0:
             weight_1 = (1.0 / parent_1.__get_variance__) / (1.0 / parent_1.__get_variance__  + 1.0 / parent_2.__get_variance__ )
