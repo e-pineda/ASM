@@ -43,6 +43,9 @@ class Agent(object):
         self.ga_count = 0
         self.last_rule_id = 101
 
+        # History for agents
+        self.history = {'Cash': [], "Position": [], "Wealth": [], "Profit": []}
+
         #MISTAKE THRESHOLD
         self.mistake_threshold = .01
 
@@ -60,7 +63,13 @@ class Agent(object):
         self.strongest_rule = None
         self.__init_forecasts__()
 
+        self.bankruptcy_flag = False
+
     # -------------------------
+    @property
+    def __get_basic_info__(self):
+        return self.name, self.wealth, self.cash, self.position, self.profit
+
     @property
     def __get_strongest_rule__(self):
         return self.strongest_rule
@@ -136,6 +145,10 @@ class Agent(object):
     @property
     def __get_curr_risk_aversion__(self):
         return self.curr_risk_aversion
+
+    @property
+    def __get_history__(self):
+        return self.history
     # --------------------------
 
     def __set_pos__(self, new_position):
@@ -179,6 +192,12 @@ class Agent(object):
 
     def __set_cash__(self, x):
         self.cash = x
+
+    def bankrupt(self):
+        self.wealth = 0
+        self.cash = self.init_cash / 2
+        self.position = 0
+
     # --------------------------
 
     def give_risky_asset(self, asset):
@@ -476,6 +495,7 @@ class Agent(object):
         forecast = self.constrain_forecast(forecast)
         return slope, forecast
 
+
     def constrain_forecast(self, forecast_price):
         # print("AGENT ID: ", self.id, '; CASH: ', self.cash, "; HOLDINGS: ", self.position, "; DEMAND: ", self.demand, "; FORECAST: ", forecast_price)
         if self.demand > 0:
@@ -528,8 +548,13 @@ class Agent(object):
                     real_var = (1 - c) * forecast.__get_real_variance__ + c * self.deviation
                     forecast.__set_real_variance__(real_var)
 
-    # GA
+    def record_history(self):
+        self.history.get('Cash').append(self.cash)
+        self.history.get('Position').append(self.position)
+        self.history.get('Wealth').append(self.wealth)
+        self.history.get('Profit').append(self.profit)
 
+    # GA
     # Add new rules and
     def activate_ga(self):
         # print("ENTERED GA")
