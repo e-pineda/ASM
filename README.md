@@ -11,7 +11,7 @@ Each agent's goal is to simply maximize the expected utility of their portfolio 
  
  
 ## Asset
-The only tradable asset within the market is a risky asset that pays a randomly-generated dividend per turn of the simulation. 
+The only tradeable asset within the market is a risky asset that pays a randomly-generated dividend per turn of the simulation. 
 Any cash held by the agent earns interest per turn of the simulation. 
 Further, it must be noted that each agent's earnings is subject to taxes per turn of the simulation.
 
