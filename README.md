@@ -5,7 +5,7 @@ This program attempts to generate an agent-based simulation of a simplified yet 
 
 
 ## Traders
-In this theoretical market, there are between twenty-five traders who share nearly identical starting conditions. 
+In this theoretical market, there are twenty-five traders who share nearly identical starting conditions. 
 The only differing factor between traders is their natural level of risk-averseness.
 Each agent's goal is to simply maximize the expected utility of their portfolio for the next period of the simulation.  
  
