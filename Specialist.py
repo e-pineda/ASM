@@ -132,7 +132,6 @@ class MarketClearer(object):
                 self.attempted_buys += 1
                 bid_total += agent.__get_demand__
                 cash_to_bankruptcy = agent.__get_cash__ - self.min_cash
-
                 if agent_price > cash_to_bankruptcy:
                     agent_price = cash_to_bankruptcy
                 order_book_buys[agent.__get_id__] = agent_price
@@ -172,9 +171,9 @@ class MarketClearer(object):
         self.volume = abs(offer_total) if bid_total > offer_total else bid_total
         self.bid_fraction = self.volume / bid_total if bid_total > 0 else 0
         self.offer_fraction = self.volume / offer_total if offer_total > 0 else 0
+        print('VOLUME: ', self.volume, 'Offer: ', offer_total, 'Bid ', bid_total)
 
-
-        return trial_price, matches
+        return trial_price, matches, bid_total, offer_total
 
     def order_book(self, buy_book, sell_book):
         price = 0
@@ -214,8 +213,6 @@ class MarketClearer(object):
             sys.exit()
 
     def complete_trades(self):
-        bf_price = self.bid_fraction * self.world_price
-        of_price = self.offer_fraction * self.world_price
         t_price = self.taup_new * self.profit_per_unit
 
         for agent in self.agents:
@@ -230,8 +227,11 @@ class MarketClearer(object):
             agent.__set_pos__(new_position)
 
             # new_cash = agent.__get_cash__ + agent.__get_demand__ * self.recently_sold.get(seller)
+
             new_cash = agent.__get_cash__ + self.recently_sold.get(seller)
+            # print('ID', agent.__get_id__, 'Old cash:', agent.__get_cash__, 'New cash:', new_cash)
             agent.__set_cash__(new_cash)
+
 
         # Recently sold
         for buyer in self.recently_bought:
@@ -241,9 +241,13 @@ class MarketClearer(object):
             agent.__set_pos__(new_position)
 
             new_cash = agent.__get_cash__ - self.recently_bought.get(buyer)
+            # print('ID', agent.__get_id__,'Old cash:', agent.__get_cash__, 'New cash:', new_cash)
             agent.__set_cash__(new_cash)
-        print("-------------------")
 
         self.recently_bought.clear()
         self.recently_sold.clear()
+        # cash = 0
+        # for agent in self.agents:
+        #     cash += agent.__get_cash__
+        # print('Average:', cash/len(self.agents))
         return self.total_buys, self.total_sells, self.attempted_buys, self.attempted_sells, self.agents

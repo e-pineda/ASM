@@ -11,7 +11,7 @@ World Variables
 
 
 Model Parameters
-	num_agents = 25
+	num_agents = 100
         init_holding = 1
         init_cash = 20000
         min_holding = -5

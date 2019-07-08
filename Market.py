@@ -7,29 +7,20 @@ import ForecastParams
 import Conditions
 import csv
 import pandas as pd
-from itertools import *
 import sys
 import random
 import numpy as np
-import matplotlib.pyplot as plt
-
-# IMPLEMENT CHANGING RISK ADVERSENESS
-#     Generate normal distribution of numbers ranging from
-#         0.31--> risk doesnt matter, .5--> risk neutral, .99--> risk matters a lot  ----------MAX---------- Holdings beyond 3.2
-#         0.16--> risk doesnt matter, .35--> risk neutral, .84--> risk matters a lot  ----------MID---------- Holdings between 1.6 and 3.2 -.15
-#         0.01--> risk doesnt matter, .2--> risk neutral, .69--> risk matters a lot  ----------MIN---------- Holdings up to 1.6 -.3
-
-#     Calculate risk aversion based on holdings
+import Graph
+import threading
 
 
-# Graph
-#     agent cash,
 class Market(object):
     def __init__(self):
         # Initialize storage for market performance
         self.div_ratio, self.pr_ratio = [], []
         self.div_periods, self.pr_periods = [[], [], [], [], []], [[], [], [], [], []]
         self.div_mas, self.pr_mas = [[], [], [], []], [[], [], [], []]
+        self.poor_performers, self.good_performers = [], []
 
         # Initialize model parameters
         self.model_params = {}
@@ -69,18 +60,26 @@ class Market(object):
 
         # Clock
         self.curr_time = 0
-        self.time_duration = 5000
+        self.time_duration = 50
         self.warm_up_time = 501
 
         # bailout flag
         self.already_bailed = False
 
+        # variables for graphs
+        self.averages = {'avg_wealth': 0, 'avg_pos': 0, 'avg_cash': 0, 'avg_profit': 0}
+
+        # graphs
+        self.market_graphs = Graph.MarketGraphs(self.time_duration)
+        self.price_ma_graphs = Graph.MAGraphs(self.time_duration, 'Price')
+        self.div_ma_graphs = Graph.MAGraphs(self.time_duration, 'Dividend')
+        self.agent_graphs = Graph.AgentGraphs(self.time_duration)
+        self.agent_performance_graphs = Graph.AgentPerformance(self.time_duration)
+
         # Warm-Up and run
         self.warm_up()
         self.run_market()
         self.populate_records()
-
-
 
     @property
     def __get_agent_size__(self):
@@ -111,6 +110,19 @@ class Market(object):
         risk_preference = random.choice(self.risk_aversion_list)
         del self.risk_aversion_list[self.risk_aversion_list.index(risk_preference)]
         return risk_preference
+
+    def __get_avgs__(self):
+        for agent in self.population:
+            self.averages['avg_cash'] += agent.__get_cash__
+            self.averages["avg_pos"] += agent.__get_pos__
+            self.averages['avg_profit'] += agent.__get_profit__
+            self.averages['avg_wealth'] += agent.__get_wealth__
+
+        self.averages['avg_cash'] /= len(self.population)
+        self.averages["avg_pos"] /= len(self.population)
+        self.averages['avg_profit'] /= len(self.population)
+        self.averages['avg_wealth'] /= len(self.population)
+
 
     # generates normal distribution ranging from -1 to 1
     @staticmethod
@@ -324,7 +336,7 @@ class Market(object):
             self.prepare_trades()
 
             # Calculate the new price and perform trades
-            self.price, curr_matches = self.specialist.perform_trades()
+            self.price, curr_matches, bid, ask = self.specialist.perform_trades()
             self.Mechanics.__set_price__(self.price)
 
             # Complete the trades
@@ -332,11 +344,11 @@ class Market(object):
             buys, sells, at_sells, at_buys, self.population = self.specialist.complete_trades()
             volume = self.specialist.__get_volume__
 
-            if i >= 2000:
-                bailout, best_performers = self.check_bailout()
-
             # Update agent performance
             self.update_performances()
+
+            # get good and bad performers
+            self.check_performances()
 
             div.append(self.dividend_value)
             price.append(self.price)
@@ -347,42 +359,62 @@ class Market(object):
             attempt_sells.append(at_sells)
             time.append(i)
             matches.append(curr_matches)
-            
-            self.curr_time += 1
-            # print("---------------------------")
-            # break
-        data = {"Price": price, "Dividend": div, "Volume": volumes, "Matches": matches, "Attempt Buys": attempt_buys,
-                "Attempt Sells": attempt_sells}
 
-        for agent in best_performers:
-            print(agent.__get_basic_info__)
+            data = {"Price": price, "Dividend": div, "Volume": volumes, "Matches": matches, "Attempt Buys": attempt_buys,
+                    "Attempt Sells": attempt_sells}
+
+            self.__get_avgs__()
+            price_ma_dict = self.get_ma_values('price')
+            div_ma_dict = self.get_ma_values('div')
+            agent_performances = self.get_agent_performances()
+
+            self.run_threaded(self.div_ma_graphs.graph_data, kwargs=div_ma_dict)
+            self.run_threaded(self.price_ma_graphs.graph_data, kwargs=price_ma_dict)
+            self.run_threaded(self.agent_graphs.graph_data, kwargs=self.averages)
+            self.run_threaded(self.agent_performance_graphs.graph_data, kwargs=agent_performances)
+            self.market_graphs.graph_data(self.price, curr_matches, bid, ask)
+
+            self.curr_time += 1
+
+            print("-------------------")
 
         self.save_data(data)
-        self.graph_agent_data(best_performers)
-        self.graph_market_data(data)
 
-    def check_bailout(self):
-        bailout_watch_list = []
-        best_performing = []
+    def run_threaded(self, job_fn, kwargs):
+        job_thread = threading.Thread(target=job_fn, kwargs=kwargs)
+        job_thread.start()
+
+    def get_agent_performances(self):
+        return {'g_performers': len(self.good_performers), 'b_performers': len(self.poor_performers)}
+
+    def get_ma_values(self, name):
+        price_ma, div_ma = self.Mechanics.__get_mas__
+        if name == 'price':
+            return {'five_ma_val': price_ma[0].__get_ma__(), 'twenty_ma_val': price_ma[1].__get_ma__(), 'hundred_ma_val':
+                   price_ma[2].__get_ma__(), 'five_hundred_ma_val': price_ma[3].__get_ma__()}
+        else:
+            return {'five_ma_val': div_ma[0].__get_ma__(), 'twenty_ma_val': div_ma[1].__get_ma__(), 'hundred_ma_val':
+                   div_ma[2].__get_ma__(), 'five_hundred_ma_val': div_ma[3].__get_ma__()}
+
+    def check_performances(self):
+        self.poor_performers.clear()
+        self.good_performers.clear()
+
+        # redo in percentiles of wealth
+        # wealth = [agent.__get_wealth__ for agent in self.population]
+        # median_welth = np.percentile(wealth, 50)
+
         for agent in self.population:
-            if agent.__get_cash__ == self.model_params['min_cash'] and agent.__get_pos__ < 0:
-                bailout_watch_list.append(agent)
-            elif agent.__get_cash__ > self.model_params['min_cash'] and agent in bailout_watch_list:
-                bailout_watch_list.remove(agent)
-            else:
-                best_performing.append(agent)
 
-        if len(bailout_watch_list) == (len(self.population) - 1) and not self.already_bailed:
-            self.bailout(bailout_watch_list)
-            print("BAILOUT HAPPENED AT TIME", self.curr_time, "with ", len(bailout_watch_list), " agents")
-            self.already_bailed = True
-            bailout_watch_list.clear()
+            if agent.__get_wealth__ <= 0:
+                self.poor_performers.append(agent)
+                if agent in self.good_performers:
+                    self.good_performers.remove(agent)
 
-        if len(bailout_watch_list) >= int(len(self.population) * .75) and self.already_bailed:
-            print("BAILOUT COULD HAPPEN AT TIME", self.curr_time, "with ", len(bailout_watch_list), " agents")
-            bailout_watch_list.clear()
-
-        return bailout_watch_list, best_performing
+            elif agent.__get_wealth__ > 0:
+                self.good_performers.append(agent)
+                if agent in self.poor_performers:
+                    self.poor_performers.remove(agent)
 
     def bailout(self, agents):
         for agent in agents:
@@ -434,17 +466,6 @@ class Market(object):
 
             if self.curr_time >= 1:
                 agent.record_history()
-                # if agent.__get_id__ == 0:
-                #     print(agent.__get_history__)
-            # if agent.__get_id__ == 0:
-            #     print("MARKET TIME: ", time)
-            #     print("MARKET CONDITIONS: ")
-            #     self.print(conditions)
-            #     print("AGENT TIME: ", agent.__get_time__)
-            #     print("AGENT CONDITIONS:", agent.__get_conditions__)
-            #     # agent.update_active_list()
-            #     # agent.activate_ga()
-            #     print("-------------------")
 
         self.specialist.__set_world_price__(self.price)
         self.specialist.__set_world_dividend__(self.dividend_value)
@@ -456,93 +477,7 @@ class Market(object):
         df.to_csv('output.txt', sep='\t')
 
 
-    def graph_market_data(self, data):
-        # data = {"Price": price, "Dividend": div, "Volume": volumes, "Matches": matches, "Attempt Buys": attempt_buys,
-        #         "Attempt Sells": attempt_sells}
+def run():
+    yeet = Market()
 
-        price_history = data.get("Price")
-        p = plt.plot(price_history)
-        plt.title("Price History")
-        plt.show()
-        plt.close()
-
-        volume_history = data.get("Matches")
-        p = plt.plot(volume_history)
-        plt.title("Volume")
-        plt.show()
-        plt.close()
-
-
-    # graph wealth per agent per 100 turns
-    def graph_agent_data(self, performers):
-        cycle = plt.rcParams['axes.prop_cycle'].by_key()['color']
-        cycle = cycle.remove('#1f77b4')
-        # cash history
-        for counter, agent in enumerate(self.population):
-            if counter == 0:
-                agent_history = agent.__get_history__
-                cash_history = agent_history['Cash']
-                continue
-            agent_history = agent.__get_history__
-            cash_history = np.add(cash_history, agent_history['Cash'])
-        cash_history[:] = [x / self.model_params['num_agents'] for x in cash_history]
-        p = plt.plot(cash_history[2:])
-        plt.title("Average cash held by agents")
-        plt.show()
-        plt.close()
-
-#       position history
-        for counter, agent in enumerate(self.population):
-            if counter == 0:
-                agent_history = agent.__get_history__
-                position_history = agent_history['Position']
-                continue
-            agent_history = agent.__get_history__
-            position_history = np.add(position_history, agent_history['Position'])
-        position_history[:] = [x / self.model_params['num_agents'] for x in position_history]
-        p = plt.plot(position_history[2:])
-        plt.title("Average position held by agents")
-        plt.show()
-        plt.close()
-
-        # profit history
-        for counter, agent in enumerate(self.population):
-            if counter == 0:
-                agent_history = agent.__get_history__
-                profit_history = agent_history['Profit']
-                continue
-
-            agent_history = agent.__get_history__
-            profit_history = np.add(profit_history, agent_history['Profit'])
-
-        # print(performers)
-        # profit_history[:] = [x / self.model_params['num_agents'] for x in profit_history]
-        # p = plt.plot(profit_history[2:])
-        # for counter, agent in enumerate(performers):
-        #     plt.plot(agent.__get_history__['Profit'], color=cycle[counter])
-        #
-        # plt.title("Average profit held by agents")
-        # plt.show()
-        # plt.close()
-
-
-def test():
-    test_market = Market()
-
-    # test_agents = test_market.__get_population__
-    # agent = test_agents[0]
-    # print(agent.__get_cash__)
-    # mechanics.__update_market__()
-    # mechanics.__see_conditions__()
-    #
-    # agent = test_market.__get_agents__(0)
-    # agent.update_active_list()
-    #
-    # print("#############################")
-    # print("FORECAST PARAMS")
-    # params = mechanics.__get_forecast_params__
-    # print(params)
-
-
-
-test()
+run()

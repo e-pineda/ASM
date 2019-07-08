@@ -149,6 +149,14 @@ class Agent(object):
     @property
     def __get_history__(self):
         return self.history
+
+    @property
+    def __get_price__(self):
+        return self.price
+
+    @property
+    def __get_dividend__(self):
+        return self.dividend
     # --------------------------
 
     def __set_pos__(self, new_position):
@@ -295,7 +303,7 @@ class Agent(object):
 
         if self.cash < self.min_cash:
             self.cash = self.min_cash
-
+        # print('ID: ', self.id, 'Cash: ', self.cash, self.min_cash)
         self.wealth = self.cash + self.price * self.position
 
     def constrain_demand(self, slope, trial_price):
