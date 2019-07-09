@@ -1,5 +1,4 @@
 import numpy
-import random
 
 
 class MovingAverage(object):
@@ -59,26 +58,3 @@ class MovingAverage(object):
 
     def clear(self):
         self.ma_inputs.clear()
-
-
-# def test():
-#     ma = MovingAverage(5)
-#     arr = ma.__get__()
-#     print(arr)
-#     print("TEST--\n")
-#     for i in range(10):
-#         value = random_stuff()
-#         ma.__add__(value)
-#         print(arr)
-#         average = ma.__get_average__()
-#         moving_ave = ma.__get_ma__()
-#         print(average, moving_ave)
-#         print("----------")
-#
-#
-# def random_stuff():
-#     value = random.randint(1,101)
-#     print(value, " will be inserted")
-#     return value
-#
-# test()

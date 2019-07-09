@@ -1,6 +1,5 @@
 import numpy
 import operator
-import sys
 
 class MarketClearer(object):
     def __init__(self):
@@ -149,14 +148,6 @@ class MarketClearer(object):
             trial_price = self.world_price
             print("ATTEMPT BUYS: ", len(order_book_buys), "; ATTEMPT SELLS: ", len(order_book_sells), "; IMBALANCE: ",
                   imbalance, "; SLOPE TOTAL: ", slope_total)
-            # if slope_total != 0:
-            #     if slope_total < 0:
-            #         trial_price -= abs(imbalance/slope_total)
-            #         print("NO TRADES CASE 1", imbalance, slope_total, imbalance/slope_total)
-            #     else:
-            #         trial_price -= imbalance / slope_total
-            #         print("NO TRADES CASE 1.5", imbalance, slope_total, imbalance / slope_total)
-            # else:
             trial_price *= 1 + eta * imbalance
 
         if trial_price < self.min_price:
@@ -186,7 +177,6 @@ class MarketClearer(object):
 
         for buy_order in sorted_buy:
             buyer_id, buy_price = buy_order[0], buy_order[1]
-            buyer_cash = self.agents[buyer_id].__get_cash__
             seller_id, sell_price = sorted_sell[0][0], sorted_sell[0][1]
 
             self.recently_bought[buyer_id] = sell_price
@@ -200,17 +190,10 @@ class MarketClearer(object):
             if len(sorted_sell) == 0:
                 break
 
-        try:
             final_price = price/matches
             # print(matches, " matches made with final price of ", final_price)
             # print("TEST", final_price, matches)
             return final_price, matches
-
-        except ZeroDivisionError:
-            print(price, matches)
-            print("BUYS: ", sorted_buy)
-            print("SELLS: ", sorted_sell)
-            sys.exit()
 
     def complete_trades(self):
         t_price = self.taup_new * self.profit_per_unit
@@ -246,8 +229,4 @@ class MarketClearer(object):
 
         self.recently_bought.clear()
         self.recently_sold.clear()
-        # cash = 0
-        # for agent in self.agents:
-        #     cash += agent.__get_cash__
-        # print('Average:', cash/len(self.agents))
         return self.total_buys, self.total_sells, self.attempted_buys, self.attempted_sells, self.agents

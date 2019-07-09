@@ -1,6 +1,3 @@
-import Conditions
-
-
 class Params(object):
     def __init__(self, conditions):
         self.params = {}
