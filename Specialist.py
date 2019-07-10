@@ -205,7 +205,7 @@ class MarketClearer(object):
 
         # print('FINAL PRICE:', final_price)
         # print('MATCHES:', matches)
-        print(sell_prices)
+        # print(sell_prices)
         final_price = price/matches
         return final_price, matches
 

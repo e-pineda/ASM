@@ -42,8 +42,8 @@ class Graphs(object):
         self.times = [i for i in range(max_turn - 1)]
         self.time_line = []
 
-        self.FFwriter = FasterFFMpegWriter(fps=120)
-        self.other_writer = FFMpegWriter(fps=120)
+        self.FFwriter = FasterFFMpegWriter(fps=15)
+        self.other_writer = FFMpegWriter(fps=15)
 
 
 class MarketGraphs(Graphs):
@@ -112,7 +112,7 @@ class MarketGraphs(Graphs):
             self.lines[0], = self.price_ax.plot(self.time_line, self.price_line, color='g')
             self.lines[1], = self.matches_ax.plot(self.time_line, self.matches_line, color='r')
             self.lines[2], = self.bid_ask_ax.plot(self.time_line, self.bid_line, color='b', lw=.5)
-            self.lines[3], = self.bid_ask_ax.plot(self.time_line, self.ask_line, color='k', lw=.5)
+            self.lines[3], = self.bid_ask_ax.plot(self.time_line, self.ask_line, color='m', lw=.5)
             self.lines[4], = self.volume_ax.plot(self.time_line, self.volume_line, color='y')
 
             self.i += 1

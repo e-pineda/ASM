@@ -33,7 +33,7 @@ All simulation parameters can and should be changed within params.txt.
 
 Note: The program, by default, will save all market data within a .csv file and graphs as .mp4 files.
 
-##Meta
+## Meta
 Elijah Pineda - epineda@conncoll.edu
 https://github.com/e-pineda
 
