@@ -18,15 +18,15 @@ class MarketClearer(object):
         self.sp_type = None
         self.types = ["sp_re", "sp_slope", "sp_eta"]
         self.demand_coefficient = 1
-        self.int_rate = .1
+        self.int_rate = None
         self.world_price = None
         self.world_dividend = None
         self.profit_per_unit = None
         self.agents = None
-        self.min_cash = -2000
+        self.min_cash = None
+        self.buy_threshold = None
+        self.sell_threshold = None
 
-        self.buy_threshold = .2
-        self.sell_threshold = -.2
         self.total_buys = 0
         self.total_sells = 0
         self.attempted_buys = 0
@@ -80,8 +80,18 @@ class MarketClearer(object):
     def __set_agents__(self, x):
         self.agents = x
 
-    def __set_vals__(self, max_price=None, min_price=None, taup=None, sp_type=None,max_iterations=None,
-                     min_excess=None, eta=None, rea=None, reb=None, agents=None):
+    def __set_min_cash__(self, x):
+        self.min_cash = x
+
+    def __set_sell_threshold__(self, x):
+        self.sell_threshold = x
+
+    def __set_buy_threshold__(self, x):
+        self.buy_threshold = x
+
+    def __set_vals__(self, max_price=None, min_price=None, taup=None, sp_type=None, max_iterations=None,
+                     min_excess=None, eta=None, rea=None, reb=None, agents=None, int_rate=None, min_cash=None,
+                     sell_threshold=None, buy_threshold=None):
         self.__set_max_price__(max_price)
         self.__set_min_price__(min_price)
         self.__set_taup__(taup)
@@ -92,6 +102,10 @@ class MarketClearer(object):
         self.__set_rea__(rea)
         self.__set_reb__(reb)
         self.__set_agents__(agents)
+        self.__set_int_rate__(int_rate)
+        self.__set_min_cash__(min_cash)
+        self.__set_sell_threshold__(sell_threshold)
+        self.__set_buy_threshold__(buy_threshold)
 
     @property
     def __get_volume__(self):
@@ -119,14 +133,13 @@ class MarketClearer(object):
         eta = 0.0005
 
         trial_price = self.world_price
-        print("Current Price: ", trial_price)
 
         for agent in self.agents:
             slope, agent_price = 0, 0
             slope, agent_price = agent.calc_demand_slope(slope, trial_price)
             slope_total += slope
 
-            if agent.__get_demand__ > 0:
+            if agent.__get_demand__ > self.buy_threshold:
                 self.total_buys += 1
                 self.attempted_buys += 1
                 bid_total += agent.__get_demand__
@@ -135,7 +148,7 @@ class MarketClearer(object):
                     agent_price = cash_to_bankruptcy
                 order_book_buys[agent.__get_id__] = agent_price
 
-            elif agent.__get_demand__ < 0:
+            elif agent.__get_demand__ < self.sell_threshold:
                 self.total_sells += 1
                 self.attempted_sells += 1
                 offer_total -= agent.__get_demand__
@@ -149,6 +162,7 @@ class MarketClearer(object):
             print("ATTEMPT BUYS: ", len(order_book_buys), "; ATTEMPT SELLS: ", len(order_book_sells), "; IMBALANCE: ",
                   imbalance, "; SLOPE TOTAL: ", slope_total)
             trial_price *= 1 + eta * imbalance
+            print(trial_price)
 
         if trial_price < self.min_price:
             trial_price = self.min_price
@@ -162,14 +176,13 @@ class MarketClearer(object):
         self.volume = abs(offer_total) if bid_total > offer_total else bid_total
         self.bid_fraction = self.volume / bid_total if bid_total > 0 else 0
         self.offer_fraction = self.volume / offer_total if offer_total > 0 else 0
-        print('VOLUME: ', self.volume, 'Offer: ', offer_total, 'Bid ', bid_total)
-
+        print('VOLUME: ', self.volume, 'Ask: ', offer_total, 'Bid ', bid_total)
         return trial_price, matches, bid_total, offer_total
 
     def order_book(self, buy_book, sell_book):
         price = 0
         matches = 0
-
+        sell_prices = []
         sorted_buy = sorted(buy_book.items(), key=operator.itemgetter(1))
         sorted_sell = sorted(sell_book.items(), key=operator.itemgetter(1))
         if len(sorted_sell) == 0 or len(sorted_buy) == 0:
@@ -181,19 +194,20 @@ class MarketClearer(object):
 
             self.recently_bought[buyer_id] = sell_price
             self.recently_sold[seller_id] = sell_price
+            sell_prices.append(sell_price)
 
             sorted_sell = sorted_sell[1:]
-
             price += sell_price
             matches += 1
 
             if len(sorted_sell) == 0:
                 break
 
-            final_price = price/matches
-            # print(matches, " matches made with final price of ", final_price)
-            # print("TEST", final_price, matches)
-            return final_price, matches
+        # print('FINAL PRICE:', final_price)
+        # print('MATCHES:', matches)
+        print(sell_prices)
+        final_price = price/matches
+        return final_price, matches
 
     def complete_trades(self):
         t_price = self.taup_new * self.profit_per_unit
@@ -214,7 +228,6 @@ class MarketClearer(object):
             new_cash = agent.__get_cash__ + self.recently_sold.get(seller)
             # print('ID', agent.__get_id__, 'Old cash:', agent.__get_cash__, 'New cash:', new_cash)
             agent.__set_cash__(new_cash)
-
 
         # Recently sold
         for buyer in self.recently_bought:

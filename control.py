@@ -1,0 +1,3 @@
+import Market
+
+Market.Market()

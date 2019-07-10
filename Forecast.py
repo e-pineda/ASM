@@ -17,7 +17,8 @@ class Forecast(object):
 
         self.forecast = 0
         self.lagged_forecast = None
-        self.variance = 999999999
+        self.variance = 999999
+        # self.variance = self.forecast_params['init_var']
         self.real_variance = self.forecast_params["new_forecast_var"]
         self.strength = None
 
@@ -101,8 +102,6 @@ class Forecast(object):
     def mask_bit(self, id):
         self.conditions[id] &= self.n_mask[id]
 
-
-    ############################################################################
     def __set_n_nulls__(self, x):
         self.n_nulls = x
 

@@ -5,11 +5,11 @@ import random
 class Agent(object):
     def __init__(self, id=None, name=None, agent_type=None, forecast_params=None, conditions=None,
                  price=None, dividend=None, int_rate=None, min_holding=None, init_cash=None, position=None,
-                 min_cash=None, risk_aversion=None):
+                 min_cash=None, risk_aversion=None, tolerance=None, mistake_threshold=None, make_mistakes=None):
         self.id = id
         self.name = name
         self.agent_type = agent_type
-        self.tolerance = .75
+        self.tolerance = tolerance
 
         self.demand = None
         self.profit = None
@@ -43,7 +43,8 @@ class Agent(object):
         self.history = {'Cash': [], "Position": [], "Wealth": [], "Profit": []}
 
         #MISTAKE THRESHOLD
-        self.mistake_threshold = .01
+        self.make_mistakes = make_mistakes
+        self.mistake_threshold = mistake_threshold
 
         # Copy of conditions
         self.world_conditions = {}
@@ -365,18 +366,19 @@ class Agent(object):
             if forecast.__get_count__ >= min_count:
                 n_active = True
 
-                if mistake_factor <= self.mistake_threshold:
-                    # print("MISTAKE HIT w/ FACTORS: ", skip_factor, mistake_factor)
-                    min_var = forecast.__get_real_variance__
-                    best_forecast = forecast
-                    break
+                if self.make_mistakes:
+                    if mistake_factor <= self.mistake_threshold:
+                        # print("MISTAKE HIT w/ FACTORS: ", skip_factor, mistake_factor)
+                        min_var = forecast.__get_real_variance__
+                        best_forecast = forecast
+                        break
 
-                if forecast.__get_real_variance__ < min_var:
-                    if skip_factor <= self.mistake_threshold:
-                        # print("SKIP HIT w/ FACTORS: ", skip_factor, mistake_factor)
-                        continue
-                    min_var = forecast.__get_real_variance__
-                    best_forecast = forecast
+                    if forecast.__get_real_variance__ < min_var:
+                        if skip_factor <= self.mistake_threshold:
+                            # print("SKIP HIT w/ FACTORS: ", skip_factor, mistake_factor)
+                            continue
+                        min_var = forecast.__get_real_variance__
+                        best_forecast = forecast
 
         # some forecasts are active
         if n_active:
@@ -498,7 +500,6 @@ class Agent(object):
         # CONSTRAIN FORECAST, WHICH IS THE AGENT'S PRICE, HERE
         forecast = self.constrain_forecast(forecast)
         return slope, forecast
-
 
     def constrain_forecast(self, forecast_price):
         # print("AGENT ID: ", self.id, '; CASH: ', self.cash, "; HOLDINGS: ", self.position, "; DEMAND: ", self.demand, "; FORECAST: ", forecast_price)

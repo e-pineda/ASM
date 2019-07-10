@@ -36,7 +36,6 @@ class Market(object):
         # Initialize market mechanics
         self.Mechanics = MarketMechanics.Mechanics(self.model_params, self.conditions)
         self.__set_world_values__()
-        self.__set_dividend_values__()
 
         # Store initial dividend and price
         self.init_dividend = self.Mechanics.__get_dividend__
@@ -55,21 +54,27 @@ class Market(object):
 
         # Clock
         self.curr_time = 0
-        self.time_duration = 50
-        self.warm_up_time = 501
+        self.time_duration = int(self.model_params['time_duration'])
+        self.warm_up_time = int(self.model_params['warm_up_time'])
 
         # bailout flag
         self.already_bailed = False
 
+        # Changing Interest Rate
+        self.dynamic_interest = self.model_params['dynamic_interest']
+
         # variables for graphs
         self.averages = {'avg_wealth': 0, 'avg_pos': 0, 'avg_cash': 0, 'avg_profit': 0}
+        self.graph_save = self.model_params['graph_saving']
 
         # graphs
-        self.market_graphs = Graph.MarketGraphs(self.time_duration)
-        self.price_ma_graphs = Graph.MAGraphs(self.time_duration, 'Price')
-        self.div_ma_graphs = Graph.MAGraphs(self.time_duration, 'Dividend')
-        self.agent_graphs = Graph.AgentGraphs(self.time_duration)
-        self.agent_performance_graphs = Graph.AgentPerformance(self.time_duration)
+        self.market_graphs = Graph.MarketGraphs(self.time_duration, self.graph_save)
+        self.price_ma_graphs = Graph.MAGraphs(self.time_duration, 'Price', self.graph_save)
+        self.div_ma_graphs = Graph.MAGraphs(self.time_duration, 'Dividend', self.graph_save)
+        self.agent_graphs = Graph.AgentGraphs(self.time_duration, self.graph_save)
+        self.agent_performance_graphs = Graph.AgentPerformance(self.time_duration, self.graph_save)
+        if self.dynamic_interest:
+            self.interest_graphs = Graph.InterestRate(self.time_duration, self.graph_save)
 
         # Warm-Up and run
         self.warm_up()
@@ -138,6 +143,14 @@ class Market(object):
 
                 if param_var == "ratios":
                     param_value = [float(value) for value in parameter[2:]]
+                elif param_var == 'moving_average_lengths':
+                    param_value = [int(value.strip(','))for value in parameter[2:]]
+                elif param_var == 'dynamic_interest' or param_var == 'graph_saving' or param_var == 'make_mistakes' or param_var =='csv_save':
+                    if parameter[2] == 'False':
+                        param_value = False
+                    else:
+                        param_value = True
+
                 else:
                     param_value = float(parameter[2])
 
@@ -148,10 +161,12 @@ class Market(object):
 
         with open("model_params.txt", mode='r') as in_file:
             for line in in_file:
-                if '=' not in line or line == 'Forecast Parameters':
+                line = line.strip()
+                if line == '':
+                    continue
+                if line == 'Forecast Parameters':
                     flag = True
                     continue
-
                 if flag:
                     parameter = line.split()
                     param_var = parameter[0]
@@ -170,6 +185,7 @@ class Market(object):
 
         self.forecast_params['prob_list'] = [self.forecast_params['bit_prob'] for i in range(int(self.forecast_params['cond_bits']))]
 
+
     def __load_conditions__(self):
         with open('conditions.txt') as infile:
             index = 0
@@ -181,16 +197,6 @@ class Market(object):
                 new_cond = Conditions.Condition(index, name, description)
                 self.conditions.__add__(new_cond)
                 index += 1
-
-    def __set_dividend_values__(self):
-        baseline = self.model_params["baseline"]
-        min_dividend = self.model_params["min_dividend"]
-        max_dividend = self.model_params["max_dividend"]
-        amplitude = self.model_params["amplitude"]
-        period = self.model_params["period"]
-
-        self.Mechanics.__set_dividend_vals__(baseline=baseline, min_dividend=min_dividend, max_dividend=max_dividend,
-                                             amplitude=amplitude, period=period)
 
     def __set_world_values__(self):
         int_rate = self.model_params["int_rate"]
@@ -206,9 +212,14 @@ class Market(object):
         eta = self.model_params["eta"]
         rea = self.model_params["rea"]
         reb = self.model_params["reb"]
+        int_rate = self.model_params['int_rate']
+        min_cash = self.model_params['min_cash']
+        sell_threshold = self.model_params['sell_threshold']
+        buy_threshold = self.model_params['buy_threshold']
         self.specialist.__set_vals__(max_price=max_price, min_price=min_price, taup=taup, sp_type=sp_type,
                                      max_iterations=max_iterations, min_excess=min_excess, eta=eta, rea=rea, reb=reb,
-                                     agents=self.population)
+                                     agents=self.population, int_rate=int_rate, min_cash=min_cash,
+                                     sell_threshold=sell_threshold, buy_threshold=buy_threshold)
 
     def __set_agent_values__(self):
         int_rate = self.model_params["int_rate"]
@@ -216,12 +227,16 @@ class Market(object):
         init_cash = self.model_params['init_cash']
         position = self.model_params['init_holding']
         min_cash = self.model_params['min_cash']
+        tolerance = self.model_params['tolerance']
+        mistake_threshold = self.model_params['mistake_threshold']
+        make_mistakes = self.model_params['make_mistakes']
 
         for i in range(int(self.model_params['num_agents'])):
             agent = Agents.Agent(id=i, name='Agent '+str(i), int_rate=int_rate, min_holding=min_holding, 
                                  init_cash=init_cash, position=position, forecast_params=self.forecast_params, 
                                  dividend=self.init_dividend, price=self.init_asset_price, conditions=self.conditions, 
-                                 min_cash=min_cash, risk_aversion=self.__gen_agent_risk__)
+                                 min_cash=min_cash, risk_aversion=self.__gen_agent_risk__, tolerance=tolerance,
+                                 mistake_threshold=mistake_threshold, make_mistakes=make_mistakes)
             agent.__set_holdings__()
             self.population.append(agent)
 
@@ -283,7 +298,6 @@ class Market(object):
             self.dividend_value = self.Mechanics.__update_dividend__()
             self.conditions = self.Mechanics.__update_market__()
             self.catch_market_states()
-            condition_str = self.condition_string()
 
             self.price = self.dividend_value / self.model_params['int_rate']
             self.Mechanics.__set_price__(self.price)
@@ -305,14 +319,19 @@ class Market(object):
         attempt_buys = []
         attempt_sells = []
         matches = []
+        interest_rates = []
         time = []
+        bids = []
+        asks = []
         for i in range(self.time_duration):
             print("TIME", self.curr_time)
+            print('PRICE', self.price)
             
             # CHANGE INT RATE
-            # chance_new_int_rate = random.randint(0, 10)/100
-            # if i >= 2500 and chance_new_int_rate < self.prob_int_rate_change:
-            #     self.change_int_rate()
+            if self.dynamic_interest:
+                chance_new_int_rate = random.randint(0, 10)/100
+                if i >= 2500 and chance_new_int_rate < self.prob_int_rate_change:
+                    self.change_int_rate()
 
             # Give agents their information
             self.give_info()
@@ -345,6 +364,7 @@ class Market(object):
             # get good and bad performers
             self.check_performances()
 
+            # record data
             div.append(self.dividend_value)
             price.append(self.price)
             volumes.append(volume)
@@ -354,25 +374,31 @@ class Market(object):
             attempt_sells.append(at_sells)
             time.append(i)
             matches.append(curr_matches)
+            interest_rates.append(self.int_rate)
+            bids.append(bid)
+            asks.append(ask)
 
-            data = {"Price": price, "Dividend": div, "Volume": volumes, "Matches": matches, "Attempt Buys": attempt_buys,
-                    "Attempt Sells": attempt_sells}
-
+            # graphs
             self.__get_avgs__()
             price_ma_dict = self.get_ma_values('price')
             div_ma_dict = self.get_ma_values('div')
             agent_performances = self.get_agent_performances()
 
-            self.run_threaded(self.div_ma_graphs.graph_data, kwargs=div_ma_dict)
-            self.run_threaded(self.price_ma_graphs.graph_data, kwargs=price_ma_dict)
-            self.run_threaded(self.agent_graphs.graph_data, kwargs=self.averages)
-            self.run_threaded(self.agent_performance_graphs.graph_data, kwargs=agent_performances)
-            self.market_graphs.graph_data(self.price, curr_matches, bid, ask)
+            self.div_ma_graphs.graph_data(div_ma_dict)
+            self.price_ma_graphs.graph_data(price_ma_dict)
+            self.agent_graphs.graph_data(self.averages)
+            self.agent_performance_graphs.graph_data(agent_performances)
+            self.market_graphs.graph_data(self.price, curr_matches, bid, ask, volume)
+            if self.dynamic_interest:
+                self.interest_graphs.graph_data(self.int_rate)
 
             self.curr_time += 1
 
             print("-------------------")
 
+        data = {"Price": price, "Dividend": div, "Volume": volumes, "Matches": matches, "Attempt Buys": attempt_buys,
+                "Attempt Sells": attempt_sells, 'Interest Rates': self.int_rate, 'Total Bid': bids, 'Total Ask': asks,
+                'Total Buys': buy, 'Total Sells': sell}
         self.save_data(data)
 
     def run_threaded(self, job_fn, kwargs):
@@ -470,9 +496,3 @@ class Market(object):
     def save_data(self, data):
         df = pd.DataFrame(data=data)
         df.to_csv('output.txt', sep='\t')
-
-
-def run():
-    yeet = Market()
-
-run()

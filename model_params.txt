@@ -8,7 +8,7 @@ World Variables
 	up_down_top = 0
 	risk_neutral = 0
         ratios = .25 0.5 0.75 0.875 1.0 1.125 1.25 1.5 2.0 4.0
-
+    moving_average_lengths = 5, 20, 100, 500
 
 Model Parameters
 	num_agents = 100
@@ -20,6 +20,13 @@ Model Parameters
 	prob_int_rate = 0.01
 	min_rate = 0
 	max_rate = .99
+	dynamic_interest = False
+	graph_saving = True
+	make_mistakes = True
+	csv_save = True
+
+    warm_up_time = 501
+    time_duration = 5000
 
 	baseline = 10
         min_dividend = .00005
@@ -44,6 +51,11 @@ Model Parameters
         max_bid = 10
         max_dev = 500
 
+    Agent Parameters
+        tolerance = .7
+        mistake_threshold = .01
+        buy_threshold = .1
+        sell_threshold = -.1
 
 Forecast Parameters
 	num_forecasts = 100

@@ -5,7 +5,7 @@ import random
 
 class Dividend(object):
     def __init__(self):
-        self.baseline = 10.0
+        self.baseline = None
 
         self.normal_dist = self.gen_normal_dist()
 

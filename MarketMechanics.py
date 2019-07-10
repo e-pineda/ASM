@@ -23,11 +23,16 @@ class Mechanics(object):
 
         #  DIVIDENDS
         self.Dividend_obj = Dividend.Dividend()
-        self.baseline = self.Dividend_obj.__get_baseline__()
+        self.Dividend_obj.__set_dividend__(model_parameters["baseline"])
+        self.Dividend_obj.__set_baseline__(model_parameters["baseline"])
+        self.Dividend_obj.__set_min_dividend__(model_parameters["min_dividend"])
+        self.Dividend_obj.__set_max_dividend__(model_parameters["max_dividend"])
+        self.Dividend_obj.__set_amplitude__(model_parameters["amplitude"])
+        self.Dividend_obj.__set_period__(model_parameters["period"])
+
+        self.baseline = model_parameters["baseline"]
         self.dividend_scale = self.baseline
         self.dividend = self.baseline
-        self.Dividend_obj.__set_dividend__(self.dividend)
-
         self.old_dividend = self.dividend
         self.saved_dividend = self.dividend
 
@@ -51,7 +56,7 @@ class Mechanics(object):
         # ARRAYS
         # Moving Averages
         self.exponential_ma = True
-        self.ma_length = [5, 20, 100, int(self.max_history)]
+        self.ma_length = model_parameters['moving_average_lengths']
 
         self.price_ma = []
         self.old_price_ma = []
@@ -132,13 +137,6 @@ class Mechanics(object):
 
     def __get_old_price__(self):
         return self.old_price
-
-    def __set_dividend_vals__(self, baseline=None, min_dividend=None, max_dividend=None, amplitude=None, period=None):
-        self.Dividend_obj.__set_baseline__(baseline)
-        self.Dividend_obj.__set_min_dividend__(min_dividend)
-        self.Dividend_obj.__set_max_dividend__(max_dividend)
-        self.Dividend_obj.__set_amplitude__(amplitude)
-        self.Dividend_obj.__set_period__(period)
 
     def __set_price__(self, new_price):
         self.saved_price = self.price

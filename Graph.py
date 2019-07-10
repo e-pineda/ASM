@@ -33,10 +33,11 @@ class FasterFFMpegWriter(FFMpegWriter):
 
 
 class Graphs(object):
-    def __init__(self, max_turn):
+    def __init__(self, max_turn, graph_saving):
         self.time = 0
         self.max_turn = max_turn-1
         self.i = 0
+        self.graph_save = graph_saving
 
         self.times = [i for i in range(max_turn - 1)]
         self.time_line = []
@@ -45,30 +46,32 @@ class Graphs(object):
         self.other_writer = FFMpegWriter(fps=120)
 
 
-# add bid vs ask in a single graph
 class MarketGraphs(Graphs):
-    def __init__(self, max_turn):
-        Graphs.__init__(self, max_turn=max_turn)
+    def __init__(self, max_turn, graph_save):
+        Graphs.__init__(self, max_turn=max_turn, graph_saving=graph_save)
 
         # First set up the figure, the axis, and the plot element we want to animate
-        self.fig, ((self.price_ax, test_ax), (self.volume_ax, self.bid_ask_ax)) = plt.subplots(nrows=2, ncols=2)
+        self.fig, ((self.price_ax, self.volume_ax), (self.matches_ax, self.bid_ask_ax)) = plt.subplots(nrows=2, ncols=2)
 
-        self.prices, self.volume, self.bid, self.ask = [], [], [], []
-        self.price_line, self.volume_line, self.bid_line, self.ask_line = [], [], [], []
+        self.prices, self.matches, self.bids, self.asks, self.volumes = [], [], [], [], []
+        self.price_line, self.matches_line, self.bid_line, self.ask_line, self.volume_line = [], [], [], [], []
         self.fig.tight_layout()
 
         self.line_1, = self.price_ax.plot(self.time_line, self.price_line, color='g')
-        self.line_2, = self.volume_ax.plot(self.time_line, self.volume_line, color='r')
+        self.line_2, = self.matches_ax.plot(self.time_line, self.matches_line, color='r')
         self.line_3, = self.bid_ask_ax.plot(self.time_line, self.bid_line, color='b', lw=.5)
-        self.line_4, = self.bid_ask_ax.plot(self.time_line, self.ask_line, color='m', lw=.5)
-        self.lines = [self.line_1, self.line_2, self.line_3, self.line_4]
+        self.line_4, = self.bid_ask_ax.plot(self.time_line, self.ask_line, color='k', lw=.5)
+        self.line_5, = self.volume_ax.plot(self.time_line, self.volume_line, color='y')
+        self.lines = [self.line_1, self.line_2, self.line_3, self.line_4, self.line_5]
 
     # per turn of the simulation, pass in the most updated version of the history
-    def graph_data(self, curr_price, volume, bid, ask):
+    def graph_data(self, curr_price, matches, bid, ask, volume):
+
         self.prices.append(curr_price)
-        self.volume.append(volume)
-        self.bid.append(bid)
-        self.ask.append(ask)
+        self.matches.append(matches)
+        self.bids.append(bid)
+        self.asks.append(ask)
+        self.volumes.append(volume)
         self.time += 1
         self.plot_cont()
 
@@ -77,7 +80,8 @@ class MarketGraphs(Graphs):
             for self.i in range(self.max_turn):
                 if self.i == self.max_turn:
                     break
-                yield self.prices[self.i], self.volume[self.i], self.bid[self.i], self.ask[self.i], self.times[self.i]
+                yield self.prices[self.i], self.matches[self.i], self.bids[self.i], self.asks[self.i], \
+                      self.volumes[self.i], self.times[self.i]
 
         # initialization function: plot the background of each frame
         def init():
@@ -90,22 +94,26 @@ class MarketGraphs(Graphs):
         # animation function.  This is called sequentially
         def animate(*args):
             self.price_line.append(args[0][0])
-            self.volume_line.append(args[0][1])
+            self.matches_line.append(args[0][1])
             self.bid_line.append(args[0][2])
             self.ask_line.append(args[0][3])
-            self.time_line.append(args[0][4])
+            self.volume_line.append(args[0][4])
+            self.time_line.append(args[0][5])
 
             self.price_ax.clear()
-            self.volume_ax.clear()
+            self.matches_ax.clear()
             self.bid_ask_ax.clear()
+            self.volume_ax.clear()
 
             self.price_ax.title.set_text("Price History")
-            self.volume_ax.title.set_text("Volume")
+            self.matches_ax.title.set_text("Matches Made")
             self.bid_ask_ax.title.set_text('Bid vs Ask')
+            self.volume_ax.title.set_text('Volume')
             self.lines[0], = self.price_ax.plot(self.time_line, self.price_line, color='g')
-            self.lines[1], = self.volume_ax.plot(self.time_line, self.volume_line, color='r')
+            self.lines[1], = self.matches_ax.plot(self.time_line, self.matches_line, color='r')
             self.lines[2], = self.bid_ask_ax.plot(self.time_line, self.bid_line, color='b', lw=.5)
-            self.lines[3], = self.bid_ask_ax.plot(self.time_line, self.ask_line, color='m', lw=.5)
+            self.lines[3], = self.bid_ask_ax.plot(self.time_line, self.ask_line, color='k', lw=.5)
+            self.lines[4], = self.volume_ax.plot(self.time_line, self.volume_line, color='y')
 
             self.i += 1
             return self.lines
@@ -113,13 +121,13 @@ class MarketGraphs(Graphs):
         # call the animator.  blit=True means only re-draw the parts that have changed.
         anim = animation.FuncAnimation(self.fig, animate, init_func=init,
                                        frames=frames, interval=200, save_count=self.max_turn, blit=True)
-        if self.time == self.max_turn:
+        if self.time == self.max_turn and self.graph_save:
             anim.save('Marketgraphs.mp4', writer=self.other_writer)
 
 
 class MAGraphs(Graphs):
-    def __init__(self, max_turn, name):
-        Graphs.__init__(self, max_turn=max_turn)
+    def __init__(self, max_turn, name, graph_save):
+        Graphs.__init__(self, max_turn=max_turn, graph_saving=graph_save)
 
         # First set up the figure, the axis, and the plot element we want to animate
         self.name = name
@@ -137,11 +145,11 @@ class MAGraphs(Graphs):
         self.lines = [self.line_1, self.line_2, self.line_3, self.line_4]
 
     # per turn of the simulation, pass in the most updated version of the history
-    def graph_data(self, five_ma_val, twenty_ma_val, hundred_ma_val, five_hundred_ma_val):
-        self.five_ma.append(five_ma_val)
-        self.twenty_ma.append(twenty_ma_val)
-        self.hundred_ma.append(hundred_ma_val)
-        self.five_hundred_ma.append(five_hundred_ma_val)
+    def graph_data(self, values):
+        self.five_ma.append(values['five_ma_val'])
+        self.twenty_ma.append(values['twenty_ma_val'])
+        self.hundred_ma.append(values['hundred_ma_val'])
+        self.five_hundred_ma.append(values['five_hundred_ma_val'])
 
         self.time += 1
         self.plot_cont()
@@ -191,13 +199,13 @@ class MAGraphs(Graphs):
         anim = animation.FuncAnimation(self.fig, animate, init_func=init,
                                        frames=frames, interval=200, save_count=self.max_turn)
 
-        if self.time == self.max_turn:
+        if self.time == self.max_turn and self.graph_save:
             anim.save(self.name + '_MA_graphs.mp4', writer=self.FFwriter)
 
 
 class AgentGraphs(Graphs):
-    def __init__(self, max_turn):
-        Graphs.__init__(self, max_turn=max_turn)
+    def __init__(self, max_turn, graph_save):
+        Graphs.__init__(self, max_turn=max_turn, graph_saving=graph_save)
 
         # First set up the figure, the axis, and the plot element we want to animate
         self.fig, ((self.cash, self.pos), (self.profit, self.wealth)) = plt.subplots(nrows=2, ncols=2)
@@ -213,11 +221,11 @@ class AgentGraphs(Graphs):
         self.lines = [self.line_1, self.line_2, self.line_3, self.line_4]
 
     # per turn of the simulation, pass in the most updated version of the history
-    def graph_data(self, avg_cash, avg_pos, avg_profit, avg_wealth):
-        self.cash_history.append(avg_cash)
-        self.pos_history.append(avg_pos)
-        self.profit_history.append(avg_profit)
-        self.wealth_history.append(avg_wealth)
+    def graph_data(self, values):
+        self.cash_history.append(values['avg_cash'])
+        self.pos_history.append(values['avg_pos'])
+        self.profit_history.append(values['avg_profit'])
+        self.wealth_history.append(values['avg_wealth'])
 
         self.time += 1
         self.plot_cont()
@@ -268,13 +276,13 @@ class AgentGraphs(Graphs):
         anim = animation.FuncAnimation(self.fig, animate, init_func=init,
                                        frames=frames, interval=200, save_count=self.max_turn)
         plt.close(self.fig)
-        if self.time == self.max_turn:
+        if self.time == self.max_turn and self.graph_save:
             anim.save('agent_graphs.mp4', writer=self.FFwriter)
 
 
 class AgentPerformance(Graphs):
-    def __init__(self, max_turn):
-        Graphs.__init__(self, max_turn=max_turn)
+    def __init__(self, max_turn, graph_save):
+        Graphs.__init__(self, max_turn=max_turn, graph_saving=graph_save)
 
         # First set up the figure, the axis, and the plot element we want to animate\
         self.fig, self.ax = plt.subplots()
@@ -289,9 +297,9 @@ class AgentPerformance(Graphs):
 
         # per turn of the simulation, pass in the most updated version of the history
 
-    def graph_data(self, g_performers, b_performers):
-        self.good_performers.append(g_performers)
-        self.bad_performers.append(b_performers)
+    def graph_data(self, values):
+        self.good_performers.append(values['g_performers'])
+        self.bad_performers.append(values['b_performers'])
         self.time += 1
         self.plot_cont()
 
@@ -327,5 +335,56 @@ class AgentPerformance(Graphs):
         # call the animator.  blit=True means only re-draw the parts that have changed.
         anim = animation.FuncAnimation(self.fig, animate, init_func=init,
                                        frames=frames, interval=200, save_count=self.max_turn, blit=True)
-        if self.time == self.max_turn:
+        if self.time == self.max_turn and self.graph_save:
             anim.save('Performers.mp4', writer=self.other_writer)
+
+
+class InterestRate(Graphs):
+    def __init__(self, max_turn, graph_save):
+        Graphs.__init__(self, max_turn=max_turn, graph_saving=graph_save)
+
+        # First set up the figure, the axis, and the plot element we want to animate
+        self.fig, self.ax = plt.subplots()
+
+        self.interest_rates = []
+        self.interest_line = []
+        self.fig.tight_layout()
+
+        self.line_1, = self.ax.plot(self.time_line, self.interest_line, color='g')
+
+    # per turn of the simulation, pass in the most updated version of the history
+    def graph_data(self, interest):
+        self.interest_rates.append(interest)
+        self.time += 1
+        self.plot_cont()
+
+    def plot_cont(self):
+        def frames():
+            for self.i in range(self.max_turn):
+                if self.i == self.max_turn:
+                    break
+                yield self.interest_rates[self.i], self.times[self.i]
+
+        # initialization function: plot the background of each frame
+        def init():
+            self.line_1.set_data([], [])
+            return self.line_1,
+
+        # animation function.  This is called sequentially
+        def animate(*args):
+            self.interest_line.append(args[0][0])
+            self.time_line.append(args[0][1])
+
+            self.ax.clear()
+
+            self.ax.title.set_text('Interest Rate')
+            self.line_1, = self.ax.plot(self.time_line, self.interest_line, color='g')
+
+            self.i += 1
+            return self.line_1,
+
+        # call the animator.  blit=True means only re-draw the parts that have changed.
+        anim = animation.FuncAnimation(self.fig, animate, init_func=init,
+                                       frames=frames, interval=200, save_count=self.max_turn, blit=True)
+        if self.time == self.max_turn and self.graph_save:
+            anim.save('InterestGraphs.mp4', writer=self.other_writer)
