@@ -495,4 +495,4 @@ class Market(object):
 
     def save_data(self, data):
         df = pd.DataFrame(data=data)
-        df.to_csv('output.txt', sep='\t')
+        df.to_csv('output.csv', sep='\t')

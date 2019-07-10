@@ -54,8 +54,8 @@ Model Parameters
     Agent Parameters
         tolerance = .7
         mistake_threshold = .01
-        buy_threshold = .1
-        sell_threshold = -.1
+        buy_threshold = .5
+        sell_threshold = -.5
 
 Forecast Parameters
 	num_forecasts = 100
