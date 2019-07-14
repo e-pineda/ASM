@@ -14,7 +14,7 @@ Model Parameters
 	num_agents = 100
         init_holding = 1
         init_cash = 20000
-        min_holding = -5
+        min_holding = -100
         min_cash = -2000
         int_rate = .1
 	prob_int_rate = 0.01

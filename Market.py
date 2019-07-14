@@ -123,7 +123,6 @@ class Market(object):
         self.averages['avg_profit'] /= len(self.population)
         self.averages['avg_wealth'] /= len(self.population)
 
-
     # generates normal distribution ranging from -1 to 1
     @staticmethod
     def __gen_risk_dist__():
@@ -216,10 +215,11 @@ class Market(object):
         min_cash = self.model_params['min_cash']
         sell_threshold = self.model_params['sell_threshold']
         buy_threshold = self.model_params['buy_threshold']
+        min_holding = self.model_params['min_holding']
         self.specialist.__set_vals__(max_price=max_price, min_price=min_price, taup=taup, sp_type=sp_type,
                                      max_iterations=max_iterations, min_excess=min_excess, eta=eta, rea=rea, reb=reb,
                                      agents=self.population, int_rate=int_rate, min_cash=min_cash,
-                                     sell_threshold=sell_threshold, buy_threshold=buy_threshold)
+                                     sell_threshold=sell_threshold, buy_threshold=buy_threshold, min_holding=min_holding)
 
     def __set_agent_values__(self):
         int_rate = self.model_params["int_rate"]

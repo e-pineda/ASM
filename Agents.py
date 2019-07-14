@@ -201,7 +201,7 @@ class Agent(object):
     def bankrupt(self):
         self.wealth = 0
         self.cash = self.init_cash / 2
-        self.position = 0
+        self.position = self.min_holding
 
     # --------------------------
 

@@ -14,7 +14,7 @@ Agents are only allowed to select one forecasting method per turn of the simulat
 With this, it's important to mention that each agent learns by actively and independently updating their set of forecasting method through the Adaptive Rule Learning mechanism that I designed.
 
 ## Installation
-Please make sure the following libraries are installed before running the program:
+Please make sure the following Python libraries are installed before running the program:
 ```
 random
 numpy
@@ -32,6 +32,12 @@ Simply run control.py!
 All simulation parameters can and should be changed within params.txt.
 
 Note: The program, by default, will save all market data within a .csv file and graphs as .mp4 files.
+
+## Updates
+1. Add Profit-per-Unit graph
+2. Clean up graphs.py
+3. Make into web-app
+ 
 
 ## Meta
 Elijah Pineda - epineda@conncoll.edu - 
