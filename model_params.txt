@@ -20,13 +20,14 @@ Model Parameters
 	prob_int_rate = 0.01
 	min_rate = 0
 	max_rate = .99
-	dynamic_interest = False
-	graph_saving = True
+	dynamic_interest = True
+	animated_graph_saving = True
+	image_graph_saving = True
 	make_mistakes = True
 	csv_save = True
 
     warm_up_time = 501
-    time_duration = 5000
+    time_duration = 50
 
 	baseline = 10
         min_dividend = .00005

@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 from matplotlib.animation import FFMpegWriter
 import matplotlib.animation as animation
+plt.rcParams['axes.grid'] = True
 plt.rcParams['animation.ffmpeg_path'] = "C:/FFmpeg/bin/ffmpeg"
 
 
@@ -33,87 +34,168 @@ class FasterFFMpegWriter(FFMpegWriter):
 
 
 class Graphs(object):
-    def __init__(self, max_turn, graph_saving):
+    def __init__(self, max_turn, animated_graph_saving, image_graph_saving):
         self.time = 0
-        self.max_turn = max_turn-1
+        self.max_turn = max_turn
         self.i = 0
-        self.graph_save = graph_saving
+        self.animated_graph_save = animated_graph_saving
+        self.image_graph_save = image_graph_saving
 
-        self.times = [i for i in range(max_turn - 1)]
+        self.times = [i for i in range(max_turn)]
         self.time_line = []
 
         self.FFwriter = FasterFFMpegWriter(fps=15)
         self.other_writer = FFMpegWriter(fps=15)
 
+    @staticmethod
+    def save_animated_graph(animation, writer, name):
+        print("\nCurrently saving:", name)
+        animation.save(name, writer=writer)
+
+    @staticmethod
+    def save_image_graph(figure, name):
+        figure.savefig(name)
+
+    @staticmethod
+    def init_animation(lines):
+        for line in lines:
+            line.set_data([], [])
+        return lines
+
+    @staticmethod
+    def clear_axes(axes):
+        for ax in axes:
+            ax[0].clear()
+
+    @staticmethod
+    def set_title(axes):
+        for ax in axes:
+            ax[0].title.set_text(ax[1])
+
+    @staticmethod
+    def add_to_graph_line(graph_lines, args):
+        for line, value in zip(graph_lines, args[0]):
+            line.append(value)
+
+    @staticmethod
+    def plot_animated_data(axes, lines):
+        for line in lines:
+            for ax in axes:
+                graph_lines = ax[2]
+                time_line = ax[4]
+                line_colors = ax[5]
+
+                try:
+                    line_width = ax[6]
+                except:
+                    line_width = 1
+
+                for graph_line, line_color in zip(graph_lines, line_colors):
+                    line, = ax[0].plot(time_line, graph_line, color=line_color, lw=line_width)
+                continue
+
+    @staticmethod
+    def generate_static_plot(axes, line_amount, time_line):
+        for i in range(line_amount):
+            for ax in axes:
+                graph_lines = ax[3]
+                line_colors = ax[5]
+
+                try:
+                    line_width = ax[6]
+                except:
+                    line_width = 1
+
+                for graph_line, line_color in zip(graph_lines, line_colors):
+                    ax[0].plot(time_line, graph_line, color=line_color, lw=line_width)
+                continue
+
+    @staticmethod
+    def record_graph_info(info_lists, values):
+        for info_list, value in zip(info_lists, values):
+            info_list.append(value)
+
 
 class MarketGraphs(Graphs):
-    def __init__(self, max_turn, graph_save):
-        Graphs.__init__(self, max_turn=max_turn, graph_saving=graph_save)
+    def __init__(self, max_turn, animated_graph_save, image_graph_save):
+        Graphs.__init__(self, max_turn=max_turn, animated_graph_saving=animated_graph_save, image_graph_saving=image_graph_save)
 
         # First set up the figure, the axis, and the plot element we want to animate
-        self.fig, ((self.price_ax, self.volume_ax), (self.matches_ax, self.bid_ask_ax)) = plt.subplots(nrows=2, ncols=2)
+        self.fig, axes = plt.subplots(nrows=3, ncols=2)
+        self.price_ax = axes[0][0]
+        self.matches_ax = axes[0][1]
+        self.volume_ax = axes[1][0]
+        self.ppus_ax = axes[1][1]
+        self.bid_ax = axes[2][0]
+        self.ask_ax = axes[2][1]
+        
 
-        self.prices, self.matches, self.bids, self.asks, self.volumes = [], [], [], [], []
-        self.price_line, self.matches_line, self.bid_line, self.ask_line, self.volume_line = [], [], [], [], []
+        self.prices, self.matches, self.bids, self.asks, self.volumes, self.ppus = [], [], [], [], [], []
+        self.price_line, self.matches_line, self.bid_line, self.ask_line, self.volume_line, self.profit_line = [], [], [], [], [], []
         self.fig.tight_layout()
+
+        # In order: graph ax, ax name, animated graph line(excluding time_line), static graph lines, animated_time_line,
+        # line colors, line width
+        self.axes = [(self.price_ax, "Price History", [self.price_line], [self.prices], self.time_line, ['g']),
+                     (self.matches_ax, 'Matches Made', [self.matches_line], [self.matches], self.time_line, ['r']),
+                     (self.volume_ax, 'Volume', [self.volume_line], [self.volumes], self.time_line, ['y']),
+                     (self.ppus_ax, 'Profit per Unit', [self.profit_line], [self.ppus], self.time_line, ['m']),
+                     (self.bid_ax, 'Bid Prices', [self.bid_line], [self.bids], self.time_line, ['b']),
+                     (self.ask_ax, 'Ask Prices', [self.ask_line], [self.asks], self.time_line, ['c'])]
+
+        self.graph_lines = [self.price_line, self.matches_line, self.volume_line, self.profit_line, self.bid_line, self.ask_line,
+                            self.time_line]
+        self.info_lists = [self.prices, self.matches, self.volumes, self.ppus, self.bids, self.asks]
 
         self.line_1, = self.price_ax.plot(self.time_line, self.price_line, color='g')
         self.line_2, = self.matches_ax.plot(self.time_line, self.matches_line, color='r')
-        self.line_3, = self.bid_ask_ax.plot(self.time_line, self.bid_line, color='b', lw=.5)
-        self.line_4, = self.bid_ask_ax.plot(self.time_line, self.ask_line, color='k', lw=.5)
-        self.line_5, = self.volume_ax.plot(self.time_line, self.volume_line, color='y')
-        self.lines = [self.line_1, self.line_2, self.line_3, self.line_4, self.line_5]
+        self.line_3, = self.volume_ax.plot(self.time_line, self.volume_line, color='y')
+        self.line_4, = self.ppus_ax.plot(self.time_line, self.profit_line, color='m')
+        self.line_5, = self.bid_ax.plot(self.time_line, self.bid_line, color='b')
+        self.line_6, = self.ask_ax.plot(self.time_line, self.ask_line, color='c')
+        self.lines = [self.line_1, self.line_2, self.line_3, self.line_4, self.line_5, self.line_6]
+
+    # record information to graph
+    def record_info(self, curr_price, matches, volume, profit_unit, bid, ask):
+        Graphs.record_graph_info(self.info_lists, [curr_price, matches, volume, profit_unit, bid, ask])
+        self.time += 1
+
+    def gen_static_plot (self):
+        # Generate images
+        Graphs.generate_static_plot(self.axes, len(self.graph_lines), self.times)
+        Graphs.set_title(self.axes)
+
+        # save graph if necessary
+        if self.image_graph_save:
+            Graphs.save_image_graph(figure=self.fig, name='Marketgraphs.png')
+
+        # show graph
+        self.fig.show()
 
     # per turn of the simulation, pass in the most updated version of the history
-    def graph_data(self, curr_price, matches, bid, ask, volume):
-
-        self.prices.append(curr_price)
-        self.matches.append(matches)
-        self.bids.append(bid)
-        self.asks.append(ask)
-        self.volumes.append(volume)
-        self.time += 1
-        self.plot_cont()
-
-    def plot_cont(self):
+    def visualize(self):
         def frames():
             for self.i in range(self.max_turn):
                 if self.i == self.max_turn:
                     break
-                yield self.prices[self.i], self.matches[self.i], self.bids[self.i], self.asks[self.i], \
-                      self.volumes[self.i], self.times[self.i]
+                yield self.prices[self.i], self.matches[self.i], self.volumes[self.i], self.ppus[self.i], self.bids[self.i], \
+                      self.asks[self.i], self.times[self.i]
 
         # initialization function: plot the background of each frame
         def init():
-            self.lines[0].set_data([], [])
-            self.lines[1].set_data([], [])
-            self.lines[2].set_data([], [])
-            self.lines[3].set_data([], [])
-            return self.lines
+            return Graphs.init_animation(self.lines)
 
         # animation function.  This is called sequentially
         def animate(*args):
-            self.price_line.append(args[0][0])
-            self.matches_line.append(args[0][1])
-            self.bid_line.append(args[0][2])
-            self.ask_line.append(args[0][3])
-            self.volume_line.append(args[0][4])
-            self.time_line.append(args[0][5])
+            # append to graph line
+            Graphs.add_to_graph_line(self.graph_lines, args)
 
-            self.price_ax.clear()
-            self.matches_ax.clear()
-            self.bid_ask_ax.clear()
-            self.volume_ax.clear()
+            # Clear axes and retitle
+            Graphs.clear_axes(self.axes)
+            Graphs.set_title(self.axes)
 
-            self.price_ax.title.set_text("Price History")
-            self.matches_ax.title.set_text("Matches Made")
-            self.bid_ask_ax.title.set_text('Bid vs Ask')
-            self.volume_ax.title.set_text('Volume')
-            self.lines[0], = self.price_ax.plot(self.time_line, self.price_line, color='g')
-            self.lines[1], = self.matches_ax.plot(self.time_line, self.matches_line, color='r')
-            self.lines[2], = self.bid_ask_ax.plot(self.time_line, self.bid_line, color='b', lw=.5)
-            self.lines[3], = self.bid_ask_ax.plot(self.time_line, self.ask_line, color='m', lw=.5)
-            self.lines[4], = self.volume_ax.plot(self.time_line, self.volume_line, color='y')
+            # Plot data
+            Graphs.plot_animated_data(self.axes, self.lines)
 
             self.i += 1
             return self.lines
@@ -121,22 +203,32 @@ class MarketGraphs(Graphs):
         # call the animator.  blit=True means only re-draw the parts that have changed.
         anim = animation.FuncAnimation(self.fig, animate, init_func=init,
                                        frames=frames, interval=200, save_count=self.max_turn, blit=True)
-        if self.time == self.max_turn and self.graph_save:
-            anim.save('Marketgraphs.mp4', writer=self.other_writer)
+
+        if self.time == self.max_turn and self.animated_graph_save:
+            Graphs.save_animated_graph(animation=anim, writer=self.other_writer, name='Marketgraphs.mp4')
 
 
 class MAGraphs(Graphs):
-    def __init__(self, max_turn, name, graph_save):
-        Graphs.__init__(self, max_turn=max_turn, graph_saving=graph_save)
+    def __init__(self, max_turn, name, animated_graph_save, image_graph_save):
+        Graphs.__init__(self, max_turn=max_turn, animated_graph_saving=animated_graph_save, image_graph_saving=image_graph_save)
 
         # First set up the figure, the axis, and the plot element we want to animate
         self.name = name
 
         self.fig, ((self.five, self.twenty), (self.hundred, self.five_hundred)) = plt.subplots(nrows=2, ncols=2)
         self.fig.tight_layout()
+        
 
         self.five_ma, self.twenty_ma, self.hundred_ma, self.five_hundred_ma = [], [], [], []
         self.five_line, self.twenty_line, self.hundred_line, self.five_hundred_line = [], [], [], []
+
+        self.axes = [(self.five, "5 Day "+self.name + " Moving Average", [self.five_line], [self.five_ma], self.time_line, ['g']),
+                     (self.twenty, "20 Day " + self.name + " Moving Average", [self.twenty_line], [self.twenty_ma], self.time_line, ['r']),
+                     (self.hundred, "100 Day " + self.name + " Moving Average", [self.hundred_line], [self.hundred_ma], self.time_line, ['b']),
+                     (self.five_hundred, "500 Day " + self.name + " Moving Average", [self.five_hundred_line], [self.five_hundred_ma], self.time_line, ['c'])]
+
+        self.graph_lines = [self.five_line, self.twenty_line, self.hundred_line, self.five_hundred_line, self.time_line]
+        self.info_lists = [self.five_ma, self.twenty_ma, self.hundred_ma, self.five_hundred_ma]
 
         self.line_1, = self.five.plot(self.time_line, self.five_line,  color='g')
         self.line_2, = self.twenty.plot(self.time_line, self.twenty_line,  color='r')
@@ -144,17 +236,25 @@ class MAGraphs(Graphs):
         self.line_4, = self.five_hundred.plot(self.time_line, self.five_hundred_line, color='c')
         self.lines = [self.line_1, self.line_2, self.line_3, self.line_4]
 
-    # per turn of the simulation, pass in the most updated version of the history
-    def graph_data(self, values):
-        self.five_ma.append(values['five_ma_val'])
-        self.twenty_ma.append(values['twenty_ma_val'])
-        self.hundred_ma.append(values['hundred_ma_val'])
-        self.five_hundred_ma.append(values['five_hundred_ma_val'])
-
+    def record_info(self, values):
+        Graphs.record_graph_info(self.info_lists, [values['five_ma_val'], values['twenty_ma_val'],
+                                                   values['hundred_ma_val'], values['five_hundred_ma_val']])
         self.time += 1
-        self.plot_cont()
 
-    def plot_cont(self):
+    def gen_static_plot(self):
+        # Generate images
+        Graphs.generate_static_plot(self.axes, len(self.graph_lines), self.times)
+        Graphs.set_title(self.axes)
+
+        # save graph if necessary
+        if self.image_graph_save:
+            Graphs.save_image_graph(figure=self.fig, name=self.name + '_MA_graph.png')
+
+        # show graph
+        self.fig.show()
+
+    # per turn of the simulation, pass in the most updated version of the history
+    def visualize(self):
         def frames():
             for self.i in range(self.max_turn):
                 if self.i == self.max_turn:
@@ -164,33 +264,19 @@ class MAGraphs(Graphs):
 
         # initialization function: plot the background of each frame
         def init():
-            self.lines[0].set_data([], [])
-            self.lines[1].set_data([], [])
-            self.lines[2].set_data([], [])
-            self.lines[3].set_data([], [])
-            return self.lines
+            return Graphs.init_animation(self.lines)
 
         # animation function.  This is called sequentially
         def animate(*args):
-            self.five_line.append(args[0][0])
-            self.twenty_line.append(args[0][1])
-            self.hundred_line.append(args[0][2])
-            self.five_hundred_line.append(args[0][3])
-            self.time_line.append(args[0][4])
-            self.five.clear()
-            self.twenty.clear()
-            self.hundred.clear()
-            self.five_hundred.clear()
+            # append to graph line
+            Graphs.add_to_graph_line(self.graph_lines, args)
 
-            self.lines[0], = self.five.plot(self.time_line, self.five_line,  color='g')
-            self.lines[1], = self.twenty.plot(self.time_line, self.twenty_line,  color='r')
-            self.lines[2], = self.hundred.plot(self.time_line, self.hundred_line,  color='b')
-            self.lines[3], = self.five_hundred.plot(self.time_line, self.five_hundred_line, color='c')
+            # Clear axes and retitle
+            Graphs.clear_axes(self.axes)
+            Graphs.set_title(self.axes)
 
-            self.five.title.set_text("5 Day " + self.name + " Moving Average")
-            self.twenty.title.set_text("20 Day " + self.name + " Moving Average")
-            self.hundred.title.set_text("100 Day " + self.name + " Moving Average")
-            self.five_hundred.title.set_text("500 Day " + self.name + " Moving Average")
+            # Plot data
+            Graphs.plot_animated_data(self.axes, self.lines)
 
             self.i += 1
             return self.lines
@@ -199,20 +285,29 @@ class MAGraphs(Graphs):
         anim = animation.FuncAnimation(self.fig, animate, init_func=init,
                                        frames=frames, interval=200, save_count=self.max_turn)
 
-        if self.time == self.max_turn and self.graph_save:
-            anim.save(self.name + '_MA_graphs.mp4', writer=self.FFwriter)
+        if self.time == self.max_turn and self.animated_graph_save:
+            Graphs.save_animated_graph(animation=anim, writer=self.FFwriter, name=self.name + '_MA_graphs.mp4')
 
 
 class AgentGraphs(Graphs):
-    def __init__(self, max_turn, graph_save):
-        Graphs.__init__(self, max_turn=max_turn, graph_saving=graph_save)
+    def __init__(self, max_turn, animated_graph_save, image_graph_save):
+        Graphs.__init__(self, max_turn=max_turn, animated_graph_saving=animated_graph_save, image_graph_saving=image_graph_save)
 
         # First set up the figure, the axis, and the plot element we want to animate
         self.fig, ((self.cash, self.pos), (self.profit, self.wealth)) = plt.subplots(nrows=2, ncols=2)
         self.fig.tight_layout()
+        
 
         self.cash_history, self.pos_history, self.profit_history, self.wealth_history = [], [], [], []
         self.cash_line, self.pos_line, self.profit_line, self.wealth_line = [], [], [], []
+
+        self.axes = [(self.cash, "Average Trader Cash held", [self.cash_line], [self.cash_history], self.time_line, ['g']),
+                     (self.pos, "Average Trader Position held", [self.pos_line], [self.pos_history], self.time_line, ['r']),
+                     (self.profit, "Average Trader Profit", [self.profit_line], [self.profit_history], self.time_line, ['b']),
+                     (self.wealth, "Average Trader Wealth", [self.wealth_line], [self.wealth_history], self.time_line, ['c'])]
+
+        self.info_lists = [self.cash_history, self.pos_history, self.profit_history, self.wealth_history]
+        self.graph_lines = [self.cash_line, self.pos_line, self.profit_line, self.wealth_line, self.time_line]
 
         self.line_1, = self.cash.plot(self.time_line, self.cash_line,  color='g')
         self.line_2, = self.pos.plot(self.time_line, self.pos_line,  color='r')
@@ -220,54 +315,46 @@ class AgentGraphs(Graphs):
         self.line_4, = self.wealth.plot(self.time_line, self.wealth_line, color='c')
         self.lines = [self.line_1, self.line_2, self.line_3, self.line_4]
 
-    # per turn of the simulation, pass in the most updated version of the history
-    def graph_data(self, values):
-        self.cash_history.append(values['avg_cash'])
-        self.pos_history.append(values['avg_pos'])
-        self.profit_history.append(values['avg_profit'])
-        self.wealth_history.append(values['avg_wealth'])
-
+    def record_info(self, values):
+        Graphs.record_graph_info(self.info_lists, [values['avg_cash'], values['avg_pos'], values['avg_profit'], values['avg_wealth']])
         self.time += 1
-        self.plot_cont()
 
-    def plot_cont(self):
+    def gen_static_plot(self):
+        # Generate images
+        Graphs.generate_static_plot(self.axes, len(self.graph_lines), self.times)
+        Graphs.set_title(self.axes)
+
+        # save graph if necessary
+        if self.image_graph_save:
+            Graphs.save_image_graph(figure=self.fig, name='Agent_graph.png')
+
+        # show graph
+        self.fig.show()
+
+    # per turn of the simulation, pass in the most updated version of the history
+    def visualize(self):
         def frames():
             for self.i in range(self.max_turn):
                 if self.i == self.max_turn:
                     break
-                yield self.cash_history[self.i], self.pos_history[self.i], self.profit_history[self.i], self.wealth_history[self.i]\
-                    , self.times[self.i]
+                yield self.cash_history[self.i], self.pos_history[self.i], self.profit_history[self.i], \
+                      self.wealth_history[self.i], self.times[self.i]
 
         # initialization function: plot the background of each frame
         def init():
-            self.lines[0].set_data([], [])
-            self.lines[1].set_data([], [])
-            self.lines[2].set_data([], [])
-            self.lines[3].set_data([], [])
-            return self.lines
+            return Graphs.init_animation(self.lines)
 
         # animation function.  This is called sequentially
         def animate(*args):
-            self.cash_line.append(args[0][0])
-            self.pos_line.append(args[0][1])
-            self.profit_line.append(args[0][2])
-            self.wealth_line.append(args[0][3])
-            self.time_line.append(args[0][4])
+            # append to graph line
+            Graphs.add_to_graph_line(self.graph_lines, args)
 
-            self.cash.clear()
-            self.pos.clear()
-            self.profit.clear()
-            self.wealth.clear()
+            # Clear axes and retitle
+            Graphs.clear_axes(self.axes)
+            Graphs.set_title(self.axes)
 
-            self.lines[0], = self.cash.plot(self.time_line, self.cash_line, color='g')
-            self.lines[1], = self.pos.plot(self.time_line, self.pos_line,  color='r')
-            self.lines[2], = self.profit.plot(self.time_line, self.profit_line,  color='b')
-            self.lines[3], = self.wealth.plot(self.time_line, self.wealth_line,  color='c')
-
-            self.cash.title.set_text("Average Trader Cash held")
-            self.pos.title.set_text("Average Trader Position held")
-            self.profit.title.set_text("Average Trader Profit")
-            self.wealth.title.set_text("Average Trader Wealth")
+            # Plot data
+            Graphs.plot_animated_data(self.axes, self.lines)
 
             self.i += 1
             return self.lines
@@ -276,20 +363,26 @@ class AgentGraphs(Graphs):
         anim = animation.FuncAnimation(self.fig, animate, init_func=init,
                                        frames=frames, interval=200, save_count=self.max_turn)
         plt.close(self.fig)
-        if self.time == self.max_turn and self.graph_save:
-            anim.save('agent_graphs.mp4', writer=self.FFwriter)
+        if self.time == self.max_turn and self.animated_graph_save:
+            Graphs.save_animated_graph(animation=anim, writer=self.FFwriter, name='agent_graphs.mp4')
 
 
 class AgentPerformance(Graphs):
-    def __init__(self, max_turn, graph_save):
-        Graphs.__init__(self, max_turn=max_turn, graph_saving=graph_save)
+    def __init__(self, max_turn, animated_graph_save, image_graph_save):
+        Graphs.__init__(self, max_turn=max_turn, animated_graph_saving=animated_graph_save, image_graph_saving=image_graph_save)
 
         # First set up the figure, the axis, and the plot element we want to animate\
         self.fig, self.ax = plt.subplots()
+        
 
         self.good_performers, self.bad_performers = [], []
         self.good_line, self.bad_line, = [], []
         self.fig.tight_layout()
+        self.axes = [(self.ax, "Good vs Bad Performers", [self.good_line, self.bad_line], [self.good_performers, self.bad_performers],
+                     self.time_line, ['g', 'r'], .5)]
+
+        self.info_lists = [self.good_performers, self.bad_performers]
+        self.graph_lines = [self.good_line, self.bad_line, self.time_line]
 
         self.line_1, = self.ax.plot(self.time_line, self.good_line, color='g', lw=.5)
         self.line_2, = self.ax.plot(self.time_line, self.bad_line, color='r', lw=.5)
@@ -297,13 +390,23 @@ class AgentPerformance(Graphs):
 
         # per turn of the simulation, pass in the most updated version of the history
 
-    def graph_data(self, values):
-        self.good_performers.append(values['g_performers'])
-        self.bad_performers.append(values['b_performers'])
+    def record_info(self, values):
+        Graphs.record_graph_info(self.info_lists, [values['g_performers'], values['b_performers']])
         self.time += 1
-        self.plot_cont()
 
-    def plot_cont(self):
+    def gen_static_plot(self):
+        # Generate images
+        Graphs.generate_static_plot(self.axes, len(self.graph_lines), self.times)
+        Graphs.set_title(self.axes)
+
+        # save graph if necessary
+        if self.image_graph_save:
+            Graphs.save_image_graph(figure=self.fig, name='Performances.png')
+
+        # show graph
+        self.fig.show()
+
+    def visualize(self):
         def frames():
             for self.i in range(self.max_turn):
                 if self.i == self.max_turn:
@@ -312,22 +415,19 @@ class AgentPerformance(Graphs):
 
         # initialization function: plot the background of each frame
         def init():
-            self.lines[0].set_data([], [])
-            self.lines[1].set_data([], [])
-            return self.lines
+            return Graphs.init_animation(self.lines)
 
         # animation function.  This is called sequentially
         def animate(*args):
-            self.good_line.append(args[0][0])
-            self.bad_line.append(args[0][1])
-            self.time_line.append(args[0][2])
+            # append to graph line
+            Graphs.add_to_graph_line(self.graph_lines, args)
 
-            self.ax.clear()
+            # Clear axes and retitle
+            Graphs.clear_axes(self.axes)
+            Graphs.set_title(self.axes)
 
-            self.ax.title.set_text("Good Performers")
-
-            self.lines[0], = self.ax.plot(self.time_line, self.good_line, color='g')
-            self.lines[1], = self.ax.plot(self.time_line, self.bad_line, color='r')
+            # Plot data
+            Graphs.plot_animated_data(self.axes, self.lines)
 
             self.i += 1
             return self.lines
@@ -335,13 +435,13 @@ class AgentPerformance(Graphs):
         # call the animator.  blit=True means only re-draw the parts that have changed.
         anim = animation.FuncAnimation(self.fig, animate, init_func=init,
                                        frames=frames, interval=200, save_count=self.max_turn, blit=True)
-        if self.time == self.max_turn and self.graph_save:
-            anim.save('Performers.mp4', writer=self.other_writer)
+        if self.time == self.max_turn and self.animated_graph_save:
+            Graphs.save_animated_graph(animation=anim, writer=self.other_writer, name='Performers.mp4')
 
 
 class InterestRate(Graphs):
-    def __init__(self, max_turn, graph_save):
-        Graphs.__init__(self, max_turn=max_turn, graph_saving=graph_save)
+    def __init__(self, max_turn, animated_graph_save, image_graph_save):
+        Graphs.__init__(self, max_turn=max_turn, animated_graph_saving=animated_graph_save, image_graph_saving=image_graph_save)
 
         # First set up the figure, the axis, and the plot element we want to animate
         self.fig, self.ax = plt.subplots()
@@ -350,15 +450,32 @@ class InterestRate(Graphs):
         self.interest_line = []
         self.fig.tight_layout()
 
+        self.axes = [(self.ax, 'Interest Rate', [self.interest_line], [self.interest_rates], self.time_line, ['g'])]
+
+        self.info_lists = [self.interest_rates]
+        self.graph_lines = [self.interest_line, self.time_line]
+
         self.line_1, = self.ax.plot(self.time_line, self.interest_line, color='g')
+        self.lines = [self.line_1]
+
+    def record_info(self, interest):
+        Graphs.record_graph_info(self.info_lists, [interest])
+        self.time += 1
+
+    def gen_static_plot(self):
+        # Generate images
+        Graphs.generate_static_plot(self.axes, len(self.graph_lines), self.times)
+        Graphs.set_title(self.axes)
+
+        # save graph if necessary
+        if self.image_graph_save:
+            Graphs.save_image_graph(figure=self.fig, name='Performances.png')
+
+        # show graph
+        self.fig.show()
 
     # per turn of the simulation, pass in the most updated version of the history
-    def graph_data(self, interest):
-        self.interest_rates.append(interest)
-        self.time += 1
-        self.plot_cont()
-
-    def plot_cont(self):
+    def visualize(self):
         def frames():
             for self.i in range(self.max_turn):
                 if self.i == self.max_turn:
@@ -367,24 +484,35 @@ class InterestRate(Graphs):
 
         # initialization function: plot the background of each frame
         def init():
-            self.line_1.set_data([], [])
-            return self.line_1,
+            return Graphs.init_animation(self.lines)
 
         # animation function.  This is called sequentially
         def animate(*args):
-            self.interest_line.append(args[0][0])
-            self.time_line.append(args[0][1])
+            # append to graph line
+            Graphs.add_to_graph_line(self.graph_lines, args)
 
-            self.ax.clear()
+            # Clear axes and retitle
+            Graphs.clear_axes(self.axes)
+            Graphs.set_title(self.axes)
 
-            self.ax.title.set_text('Interest Rate')
-            self.line_1, = self.ax.plot(self.time_line, self.interest_line, color='g')
+            # Plot data
+            Graphs.plot_animated_data(self.axes, self.lines)
 
             self.i += 1
-            return self.line_1,
+            return self.lines
 
         # call the animator.  blit=True means only re-draw the parts that have changed.
         anim = animation.FuncAnimation(self.fig, animate, init_func=init,
                                        frames=frames, interval=200, save_count=self.max_turn, blit=True)
-        if self.time == self.max_turn and self.graph_save:
-            anim.save('InterestGraphs.mp4', writer=self.other_writer)
+        if self.time == self.max_turn and self.animated_graph_save:
+            Graphs.save_animated_graph(animation=anim, writer=self.other_writer, name='InterestGraphs.mp4')
+
+
+def generate_animated_graphs(graphs):
+    for graph in graphs:
+        graph.visualize()
+
+
+def generate_static_graphs(graphs):
+    for graph in graphs:
+        graph.gen_static_plot()

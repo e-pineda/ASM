@@ -6,7 +6,6 @@ import Conditions
 import random
 import numpy as np
 import Graph
-import threading
 
 
 class Market(object):
@@ -65,16 +64,23 @@ class Market(object):
 
         # variables for graphs
         self.averages = {'avg_wealth': 0, 'avg_pos': 0, 'avg_cash': 0, 'avg_profit': 0}
-        self.graph_save = self.model_params['graph_saving']
+        self.animated_graph_save = self.model_params['animated_graph_saving']
+        self.image_graph_save = self.model_params['image_graph_saving']
 
         # graphs
-        self.market_graphs = Graph.MarketGraphs(self.time_duration, self.graph_save)
-        self.price_ma_graphs = Graph.MAGraphs(self.time_duration, 'Price', self.graph_save)
-        self.div_ma_graphs = Graph.MAGraphs(self.time_duration, 'Dividend', self.graph_save)
-        self.agent_graphs = Graph.AgentGraphs(self.time_duration, self.graph_save)
-        self.agent_performance_graphs = Graph.AgentPerformance(self.time_duration, self.graph_save)
+        self.market_graphs = Graph.MarketGraphs(self.time_duration, self.animated_graph_save, self.image_graph_save)
+        self.price_ma_graphs = Graph.MAGraphs(self.time_duration, 'Price', self.animated_graph_save, self.image_graph_save)
+        self.div_ma_graphs = Graph.MAGraphs(self.time_duration, 'Dividend', self.animated_graph_save, self.image_graph_save)
+        self.agent_graphs = Graph.AgentGraphs(self.time_duration, self.animated_graph_save, self.image_graph_save)
+        self.agent_performance_graphs = Graph.AgentPerformance(self.time_duration, self.animated_graph_save, self.image_graph_save)
+
         if self.dynamic_interest:
-            self.interest_graphs = Graph.InterestRate(self.time_duration, self.graph_save)
+            self.interest_graphs = Graph.InterestRate(self.time_duration, self.animated_graph_save, self.image_graph_save)
+            self.graphs = [self.market_graphs, self.price_ma_graphs, self.div_ma_graphs, self.agent_graphs,
+                           self.agent_performance_graphs, self.interest_graphs]
+        else:
+            self.graphs = [self.market_graphs, self.price_ma_graphs, self.div_ma_graphs, self.agent_graphs,
+                           self.agent_performance_graphs]
 
         # Warm-Up and run
         self.warm_up()
@@ -144,7 +150,8 @@ class Market(object):
                     param_value = [float(value) for value in parameter[2:]]
                 elif param_var == 'moving_average_lengths':
                     param_value = [int(value.strip(','))for value in parameter[2:]]
-                elif param_var == 'dynamic_interest' or param_var == 'graph_saving' or param_var == 'make_mistakes' or param_var =='csv_save':
+                elif param_var == 'dynamic_interest' or param_var == 'animated_graph_saving' or param_var == 'make_mistakes' \
+                        or param_var =='csv_save' or param_var == 'image_graph_saving':
                     if parameter[2] == 'False':
                         param_value = False
                     else:
@@ -323,6 +330,8 @@ class Market(object):
         time = []
         bids = []
         asks = []
+        profit_per_units = []
+
         for i in range(self.time_duration):
             print("TIME", self.curr_time)
             print('PRICE', self.price)
@@ -378,32 +387,45 @@ class Market(object):
             bids.append(bid)
             asks.append(ask)
 
-            # graphs
-            self.__get_avgs__()
-            price_ma_dict = self.get_ma_values('price')
-            div_ma_dict = self.get_ma_values('div')
-            agent_performances = self.get_agent_performances()
+            profit_per_unit = self.Mechanics.__get_profit_per_unit__
+            profit_per_units.append(profit_per_unit)
 
-            self.div_ma_graphs.graph_data(div_ma_dict)
-            self.price_ma_graphs.graph_data(price_ma_dict)
-            self.agent_graphs.graph_data(self.averages)
-            self.agent_performance_graphs.graph_data(agent_performances)
-            self.market_graphs.graph_data(self.price, curr_matches, bid, ask, volume)
-            if self.dynamic_interest:
-                self.interest_graphs.graph_data(self.int_rate)
+            #record graph info
+            self.record_graph_info(matches_made=curr_matches, bid=bid, ask=ask, volume=volume, profit_unit=profit_per_unit)
 
             self.curr_time += 1
 
+            print('PPU:', profit_per_unit, 'Avg Profit:', self.averages['avg_profit'])
             print("-------------------")
 
+        # show graphs and save if necessary
+        Graph.generate_static_graphs(self.graphs)
+        if self.animated_graph_save:
+            Graph.generate_animated_graphs(self.graphs)
+
         data = {"Price": price, "Dividend": div, "Volume": volumes, "Matches": matches, "Attempt Buys": attempt_buys,
-                "Attempt Sells": attempt_sells, 'Interest Rates': self.int_rate, 'Total Bid': bids, 'Total Ask': asks,
+                "Attempt Sells": attempt_sells, 'Interest Rates': interest_rates, 'Total Bid': bids, 'Total Ask': asks,
                 'Total Buys': buy, 'Total Sells': sell}
         self.save_data(data)
 
-    def run_threaded(self, job_fn, kwargs):
-        job_thread = threading.Thread(target=job_fn, kwargs=kwargs)
-        job_thread.start()
+    def record_graph_info(self, matches_made, bid, ask, volume, profit_unit):
+        price_ma_dict, div_ma_dict, agent_performances = self.get_graph_data()
+
+        self.div_ma_graphs.record_info(div_ma_dict)
+        self.price_ma_graphs.record_info(price_ma_dict)
+        self.agent_graphs.record_info(self.averages)
+        self.agent_performance_graphs.record_info(agent_performances)
+        self.market_graphs.record_info(curr_price=self.price, matches=matches_made, bid=bid, ask=ask, volume=volume,
+                                       profit_unit=profit_unit)
+        if self.dynamic_interest:
+            self.interest_graphs.record_info(self.int_rate)
+
+    def get_graph_data(self):
+        self.__get_avgs__()
+        price_ma_dict = self.get_ma_values('price')
+        div_ma_dict = self.get_ma_values('div')
+        agent_performances = self.get_agent_performances()
+        return price_ma_dict, div_ma_dict, agent_performances
 
     def get_agent_performances(self):
         return {'g_performers': len(self.good_performers), 'b_performers': len(self.poor_performers)}

@@ -34,9 +34,8 @@ All simulation parameters can and should be changed within params.txt.
 Note: The program, by default, will save all market data within a .csv file and graphs as .mp4 files.
 
 ## Updates
-1. Add Profit-per-Unit graph
-2. Clean up graphs.py
-3. Make into web-app
+1. Clean code and unused variables
+2. Make into web-app
  
 
 ## Meta
