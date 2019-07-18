@@ -20,9 +20,9 @@ Model Parameters
 	prob_int_rate = 0.01
 	min_rate = 0
 	max_rate = .99
-	dynamic_interest = True
-	animated_graph_saving = True
-	image_graph_saving = True
+	dynamic_interest = False
+	animated_graph_saving = False
+	image_graph_saving = False
 	make_mistakes = True
 	csv_save = True
 
