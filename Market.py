@@ -63,9 +63,11 @@ class Market(object):
         self.dynamic_interest = self.model_params['dynamic_interest']
 
         # variables for graphs
-        self.averages = {'avg_wealth': 0, 'avg_pos': 0, 'avg_cash': 0, 'avg_profit': 0}
+        self.mistakes_made = 0
+        self.agents_learned = 0
         self.animated_graph_save = self.model_params['animated_graph_saving']
         self.image_graph_save = self.model_params['image_graph_saving']
+        self.averages = {'avg_wealth': 0, 'avg_pos': 0, 'avg_cash': 0, 'avg_profit': 0}
 
         # graphs
         self.market_graphs = Graph.MarketGraphs(self.time_duration, self.animated_graph_save, self.image_graph_save)
@@ -428,7 +430,8 @@ class Market(object):
         return price_ma_dict, div_ma_dict, agent_performances
 
     def get_agent_performances(self):
-        return {'g_performers': len(self.good_performers), 'b_performers': len(self.poor_performers)}
+        return {'g_performers': len(self.good_performers), 'b_performers': len(self.poor_performers),
+                'agents_learned': self.agents_learned, 'mistakes_made': self.mistakes_made}
 
     def get_ma_values(self, name):
         price_ma, div_ma = self.Mechanics.__get_mas__
@@ -443,11 +446,19 @@ class Market(object):
         self.poor_performers.clear()
         self.good_performers.clear()
 
+        self.mistakes_made = 0
+        self.agents_learned = 0
+
         # redo in percentiles of wealth
         # wealth = [agent.__get_wealth__ for agent in self.population]
         # median_welth = np.percentile(wealth, 50)
 
         for agent in self.population:
+            if agent.__get_mistake_made__:
+                self.mistakes_made += 1
+
+            if agent.__get_learned__:
+                self.agents_learned += 1
 
             if agent.__get_wealth__ <= 0:
                 self.poor_performers.append(agent)

@@ -372,26 +372,33 @@ class AgentPerformance(Graphs):
         Graphs.__init__(self, max_turn=max_turn, animated_graph_saving=animated_graph_save, image_graph_saving=image_graph_save)
 
         # First set up the figure, the axis, and the plot element we want to animate\
-        self.fig, self.ax = plt.subplots()
-        
+        self.fig, self.ax = plt.subplots(3, 1)
+        self.performances_ax = self.ax[0]
+        self.agents_learned_ax = self.ax[1]
+        self.mistakes_ax = self.ax[2]
 
-        self.good_performers, self.bad_performers = [], []
-        self.good_line, self.bad_line, = [], []
+        self.good_performers, self.bad_performers, self.agents_learned, self.mistakes_amount = [], [], [], []
+        self.good_line, self.bad_line, self.learned_line, self.mistakes_line = [], [], [], []
         self.fig.tight_layout()
-        self.axes = [(self.ax, "Good vs Bad Performers", [self.good_line, self.bad_line], [self.good_performers, self.bad_performers],
-                     self.time_line, ['g', 'r'], .5)]
+        self.axes = [(self.performances_ax, "Good vs Bad Performers", [self.good_line, self.bad_line], [self.good_performers, self.bad_performers],
+                     self.time_line, ['g', 'r'], .5),
+                     (self.agents_learned_ax, 'Amount of Agents that learned', [self.learned_line], [self.agents_learned], self.time_line, ['b']),
+                     (self.mistakes_ax, 'Amount of Mistakes made', [self.mistakes_line], [self.mistakes_amount], self.time_line, ['c'])]
 
-        self.info_lists = [self.good_performers, self.bad_performers]
-        self.graph_lines = [self.good_line, self.bad_line, self.time_line]
+        self.info_lists = [self.good_performers, self.bad_performers, self.agents_learned, self.mistakes_amount]
+        self.graph_lines = [self.good_line, self.bad_line, self.learned_line, self.mistakes_amount, self.time_line]
 
-        self.line_1, = self.ax.plot(self.time_line, self.good_line, color='g', lw=.5)
-        self.line_2, = self.ax.plot(self.time_line, self.bad_line, color='r', lw=.5)
-        self.lines = [self.line_1, self.line_2]
+        self.line_1, = self.performances_ax.plot(self.time_line, self.good_line, color='g', lw=.5)
+        self.line_2, = self.performances_ax.plot(self.time_line, self.bad_line, color='r', lw=.5)
+        self.line_3, = self.agents_learned_ax.plot(self.time_line, self.learned_line, color='b')
+        self.line_4, = self.mistakes_ax.plot(self.time_line, self.mistakes_line, color='r', lw=.5)
+        self.lines = [self.line_1, self.line_2, self.line_3, self.line_4]
 
         # per turn of the simulation, pass in the most updated version of the history
 
     def record_info(self, values):
-        Graphs.record_graph_info(self.info_lists, [values['g_performers'], values['b_performers']])
+        Graphs.record_graph_info(self.info_lists, [values['g_performers'], values['b_performers'], values['agents_learned'],
+                                                   values['mistakes_made']])
         self.time += 1
 
     def gen_static_plot(self):
@@ -411,7 +418,8 @@ class AgentPerformance(Graphs):
             for self.i in range(self.max_turn):
                 if self.i == self.max_turn:
                     break
-                yield self.good_performers[self.i], self.bad_performers[self.i], self.times[self.i]
+                yield self.good_performers[self.i], self.bad_performers[self.i], self.agents_learned[self.i], \
+                      self.mistakes_amount[self.i], self.times[self.i]
 
         # initialization function: plot the background of each frame
         def init():
@@ -506,6 +514,7 @@ class InterestRate(Graphs):
                                        frames=frames, interval=200, save_count=self.max_turn, blit=True)
         if self.time == self.max_turn and self.animated_graph_save:
             Graphs.save_animated_graph(animation=anim, writer=self.other_writer, name='InterestGraphs.mp4')
+
 
 
 def generate_animated_graphs(graphs):

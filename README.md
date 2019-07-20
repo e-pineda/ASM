@@ -33,6 +33,8 @@ All simulation parameters can and should be changed within params.txt.
 
 Note: The program, by default, will save all market data within a .csv file and graphs as .mp4 files.
 
+Note 2: Profit-per-unit is new_price - old_price + dividend. Average Trader Profit is the average amount of profit made by traders per turn.
+
 ## Updates
 1. Clean code and unused variables
 2. Make into web-app

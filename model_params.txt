@@ -27,7 +27,7 @@ Model Parameters
 	csv_save = True
 
     warm_up_time = 501
-    time_duration = 50
+    time_duration = 5000
 
 	baseline = 10
         min_dividend = .00005

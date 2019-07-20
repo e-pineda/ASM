@@ -39,6 +39,9 @@ class Agent(object):
         self.ga_count = 0
         self.last_rule_id = 101
 
+        self.made_mistake = False
+        self.learned = False
+
         # History for agents
         self.history = {'Cash': [], "Position": [], "Wealth": [], "Profit": []}
 
@@ -154,6 +157,15 @@ class Agent(object):
     @property
     def __get_dividend__(self):
         return self.dividend
+
+    @property
+    def __get_mistake_made__(self):
+        return self.made_mistake
+
+    @property
+    def __get_learned__(self):
+        return self.learned
+
     # --------------------------
 
     def __set_pos__(self, new_position):
@@ -348,6 +360,9 @@ class Agent(object):
         n_active = False
         min_count = self.forecast_params['min_count']
 
+        self.made_mistake = False
+        self.learned = False
+
         # activate GA if necessary
         if self.time >= self.forecast_params["first_ga_time"] and random.uniform(0,1) < self.forecast_params["ga_prob"]:
             self.activate_ga()
@@ -371,11 +386,13 @@ class Agent(object):
                         # print("MISTAKE HIT w/ FACTORS: ", skip_factor, mistake_factor)
                         min_var = forecast.__get_real_variance__
                         best_forecast = forecast
+                        self.made_mistake = True
                         break
 
                     if forecast.__get_real_variance__ < min_var:
                         if skip_factor <= self.mistake_threshold:
                             # print("SKIP HIT w/ FACTORS: ", skip_factor, mistake_factor)
+                            self.made_mistake = True
                             continue
                         min_var = forecast.__get_real_variance__
                         best_forecast = forecast
@@ -564,6 +581,7 @@ class Agent(object):
     def activate_ga(self):
         # print("ENTERED GA")
         self.ga_count += 1
+        self.learned = True
 
         # Sort current rules based on their strength and find median strength
         sorted_rules, median_strength = self.sort_strengths()
