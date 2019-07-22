@@ -14,14 +14,10 @@ Agents are only allowed to select one forecasting method per turn of the simulat
 With this, it's important to mention that each agent learns by actively and independently updating their set of forecasting method through the Adaptive Rule Learning mechanism that I designed.
 
 ## Installation
-Please make sure the following Python libraries are installed before running the program:
+The only Python libraries required are Numpy, Pandas and Matplotlib. Run the below command before running the program:
+
 ```
-random
-numpy
-pandas
-operator
-matplotlib
-math
+pip install -r requirements.txt
 ```
 
 
@@ -36,8 +32,7 @@ Note: The program, by default, will save all market data within a .csv file and 
 Note 2: Profit-per-unit is new_price - old_price + dividend. Average Trader Profit is the average amount of profit made by traders per turn.
 
 ## Updates
-1. Clean code and unused variables
-2. Make into web-app
+1. Make into web-app
  
 
 ## Meta
