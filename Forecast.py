@@ -17,9 +17,9 @@ class Forecast(object):
 
         self.forecast = 0
         self.lagged_forecast = None
-        self.variance = 999999
-        # self.variance = self.forecast_params['init_var']
-        self.real_variance = self.forecast_params["new_forecast_var"]
+
+        self.variance = self.forecast_params['init_var']
+        self.real_variance = self.forecast_params["init_var"]
         self.strength = None
 
         self.a = None
@@ -35,7 +35,6 @@ class Forecast(object):
 
         self.cond_words = self.forecast_params["cond_words"]
         self.cond_bits = self.forecast_params["cond_bits"]
-        self.n_nulls = self.forecast_params["n_nulls"]
         
     # ----------------------
     def __init_monitor__(self):
@@ -101,9 +100,6 @@ class Forecast(object):
 
     def mask_bit(self, id):
         self.conditions[id] &= self.n_mask[id]
-
-    def __set_n_nulls__(self, x):
-        self.n_nulls = x
 
     def __set_bit_cost__(self, x):
         self.bit_cost = x

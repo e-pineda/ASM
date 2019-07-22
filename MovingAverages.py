@@ -39,9 +39,6 @@ class MovingAverage(object):
             return 0
         return self.total_sum / self.num_inputs
 
-    def __get_expwma__(self):
-        return self.exp_weighted_ma
-
     def __add__(self, new_value):
         self.arr_position = (self.width + self.num_inputs) % self.width
 

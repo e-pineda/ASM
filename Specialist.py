@@ -7,17 +7,13 @@ class MarketClearer(object):
         self.max_price = None
         self.min_price = None
         self.eta = None
-        self.min_excess = None
-        self.rea = None
-        self.reb = None
         self.bid_fraction = None
         self.offer_fraction = None
-        self.max_iterations = None
         self.volume = None
-        self.taup_decay = None
+
         self.taup_new = None
-        self.sp_type = None
-        self.types = ["sp_re", "sp_slope", "sp_eta"]
+        self.taup_decay = None
+
         self.demand_coefficient = 1
         self.int_rate = None
         self.world_price = None
@@ -52,25 +48,8 @@ class MarketClearer(object):
         self.taup_new = -numpy.expm1(-1.0 / x)
         self.taup_decay = 1.0 - self.taup_new
 
-    def __set_sp_type__(self, x):
-        if x != 0 or x != 1 or x != 2:
-            x = 1
-        self.sp_type = x
-
-    def __set_max_iterations__(self, x):
-        self.max_iterations = x
-
-    def __set_min_excess__(self, x):
-        self.min_excess = x
-
     def __set_eta__(self, x):
         self.eta = x
-
-    def __set_rea__(self, x):
-        self.rea = x
-
-    def __set_reb__(self, x):
-        self.trial_price = x
 
     def __set_world_price__(self, x):
         self.world_price = x
@@ -99,19 +78,14 @@ class MarketClearer(object):
     def __set_old_price__(self, x):
         self.old_price = x
 
-    def __set_vals__(self, max_price=None, min_price=None, taup=None, sp_type=None, max_iterations=None,
-                     min_excess=None, eta=None, rea=None, reb=None, agents=None, int_rate=None, min_cash=None,
+    def __set_vals__(self, max_price=None, min_price=None, taup=None,
+                     eta=None, agents=None, int_rate=None, min_cash=None,
                      sell_threshold=None, buy_threshold=None, min_holding=None):
         self.__set_max_price__(max_price)
         self.__set_min_price__(min_price)
-        self.__set_taup__(taup)
-        self.__set_sp_type__(sp_type)
-        self.__set_max_iterations__(max_iterations)
-        self.__set_min_excess__(min_excess)
         self.__set_eta__(eta)
-        self.__set_rea__(rea)
-        self.__set_reb__(reb)
         self.__set_agents__(agents)
+        self.__set_taup__(taup)
         self.__set_int_rate__(int_rate)
         self.__set_min_cash__(min_cash)
         self.__set_min_holding__(min_holding)
@@ -139,9 +113,6 @@ class MarketClearer(object):
         self.total_sells = 0
         self.attempted_buys = 0
         self.attempted_sells = 0
-
-        # Increase in attempt buys/sells correlates to increase in eta
-        eta = 0.0005
 
         trial_price = self.world_price
 
@@ -174,7 +145,7 @@ class MarketClearer(object):
             trial_price = self.world_price
             print("ATTEMPT BUYS: ", len(order_book_buys), "; ATTEMPT SELLS: ", len(order_book_sells), "; IMBALANCE: ",
                   imbalance, "; SLOPE TOTAL: ", slope_total)
-            trial_price *= 1 + eta * imbalance
+            trial_price *= 1 + self.eta * imbalance
             print(trial_price)
 
         if trial_price < self.min_price:
@@ -189,7 +160,7 @@ class MarketClearer(object):
         self.volume = abs(offer_total) if bid_total > offer_total else bid_total
         self.bid_fraction = self.volume / bid_total if bid_total > 0 else 0
         self.offer_fraction = self.volume / offer_total if offer_total > 0 else 0
-        print('VOLUME: ', self.volume, 'Ask: ', offer_total, 'Bid ', bid_total)
+        # print('VOLUME: ', self.volume, 'Ask: ', offer_total, 'Bid ', bid_total)
         return trial_price, matches, bid_total, offer_total
 
     def order_book(self, buy_book, sell_book):

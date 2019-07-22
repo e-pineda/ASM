@@ -10,7 +10,6 @@ class Mechanics(object):
         self.dimensions = model_parameters['dimensions']
         self.max_history = model_parameters['max_history']
         self.up_down_ref = model_parameters['up_down_ref']
-        self.p_up_down_bit = model_parameters['p_up_down_bit']
         self.ratios = model_parameters['ratios']
         # -------------------
 
@@ -135,6 +134,10 @@ class Mechanics(object):
     def __get_price_ratio__(self):
         return self.price_ratio
 
+    @property
+    def __get_return_ratio__(self):
+        return self.return_ratio
+
     def __get_old_price__(self):
         return self.old_price
 
@@ -174,21 +177,6 @@ class Mechanics(object):
         window = self.div_ma[0].__get__()
         print("New Dividend: ", self.dividend, "Div_ma: ", window)
         print(self.price)
-
-    # -------------------
-    def price_trend(self, n):
-        if n > self.up_down_ref:
-            print("argument " + str(n) + "to -pricetrend: exceeds: " + str(self.up_down_ref))
-
-        for i in range(n):
-            trend |= self.conditions[i+self.p_up_down_bit]
-
-        if trend == 1:
-            return 1
-        elif trend == 2:
-            return -1
-        else:
-            return 0
 
     # -------------------
     def __update_dividend__(self):

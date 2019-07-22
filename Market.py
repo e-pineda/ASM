@@ -188,9 +188,6 @@ class Market(object):
         self.forecast_params['c_range'] = self.forecast_params["c_max"] - self.forecast_params["c_min"]
         self.forecast_params['ga_prob'] = 1 / self.forecast_params['ga_freq']
 
-        self.forecast_params['n_pool'] = self.forecast_params['num_forecasts'] * self.forecast_params['pool_fraction']
-        self.forecast_params['n_new'] = self.forecast_params['num_forecasts'] * self.forecast_params['new_fraction']
-
         self.forecast_params['prob_list'] = [self.forecast_params['bit_prob'] for i in range(int(self.forecast_params['cond_bits']))]
 
 
@@ -213,20 +210,14 @@ class Market(object):
     def __set_specialist_values__(self):
         max_price = self.model_params["max_price"]
         min_price = self.model_params["min_price"]
-        taup = self.model_params["taup"]
-        sp_type = self.model_params["sp_type"]
-        max_iterations = self.model_params["max_iterations"]
-        min_excess = self.model_params["min_excess"]
         eta = self.model_params["eta"]
-        rea = self.model_params["rea"]
-        reb = self.model_params["reb"]
         int_rate = self.model_params['int_rate']
         min_cash = self.model_params['min_cash']
+        taup = self.model_params['taup']
         sell_threshold = self.model_params['sell_threshold']
         buy_threshold = self.model_params['buy_threshold']
         min_holding = self.model_params['min_holding']
-        self.specialist.__set_vals__(max_price=max_price, min_price=min_price, taup=taup, sp_type=sp_type,
-                                     max_iterations=max_iterations, min_excess=min_excess, eta=eta, rea=rea, reb=reb,
+        self.specialist.__set_vals__(max_price=max_price, min_price=min_price, eta=eta, taup=taup,
                                      agents=self.population, int_rate=int_rate, min_cash=min_cash,
                                      sell_threshold=sell_threshold, buy_threshold=buy_threshold, min_holding=min_holding)
 
@@ -333,6 +324,7 @@ class Market(object):
         bids = []
         asks = []
         profit_per_units = []
+        return_ratios = []
 
         for i in range(self.time_duration):
             print("TIME", self.curr_time)
@@ -392,12 +384,16 @@ class Market(object):
             profit_per_unit = self.Mechanics.__get_profit_per_unit__
             profit_per_units.append(profit_per_unit)
 
+            return_ratio = self.Mechanics.__get_return_ratio__
+            return_ratios.append(return_ratio)
+
             #record graph info
-            self.record_graph_info(matches_made=curr_matches, bid=bid, ask=ask, volume=volume, profit_unit=profit_per_unit)
+            self.record_graph_info(matches_made=curr_matches, bid=bid, ask=ask, volume=volume,
+                                   profit_unit=profit_per_unit, return_ratio=return_ratio)
 
             self.curr_time += 1
 
-            print('PPU:', profit_per_unit, 'Avg Profit:', self.averages['avg_profit'])
+            # print('PPU:', profit_per_unit, 'Avg Profit:', self.averages['avg_profit'])
             print("-------------------")
 
         # show graphs and save if necessary
@@ -407,10 +403,10 @@ class Market(object):
 
         data = {"Price": price, "Dividend": div, "Volume": volumes, "Matches": matches, "Attempt Buys": attempt_buys,
                 "Attempt Sells": attempt_sells, 'Interest Rates': interest_rates, 'Total Bid': bids, 'Total Ask': asks,
-                'Total Buys': buy, 'Total Sells': sell}
+                'Total Buys': buy, 'Total Sells': sell, "Profit per Units": profit_per_units}
         self.save_data(data)
 
-    def record_graph_info(self, matches_made, bid, ask, volume, profit_unit):
+    def record_graph_info(self, matches_made, bid, ask, volume, profit_unit, return_ratio):
         price_ma_dict, div_ma_dict, agent_performances = self.get_graph_data()
 
         self.div_ma_graphs.record_info(div_ma_dict)
@@ -418,7 +414,7 @@ class Market(object):
         self.agent_graphs.record_info(self.averages)
         self.agent_performance_graphs.record_info(agent_performances)
         self.market_graphs.record_info(curr_price=self.price, matches=matches_made, bid=bid, ask=ask, volume=volume,
-                                       profit_unit=profit_unit)
+                                       profit_unit=profit_unit, return_ratio=return_ratio)
         if self.dynamic_interest:
             self.interest_graphs.record_info(self.int_rate)
 

@@ -115,23 +115,32 @@ class Graphs(object):
         for info_list, value in zip(info_lists, values):
             info_list.append(value)
 
+    @staticmethod
+    def create_legend(ax, lines, titles):
+        for line, title in zip(lines, titles):
+            line.set_label(title)
+            ax.legend()
+
 
 class MarketGraphs(Graphs):
     def __init__(self, max_turn, animated_graph_save, image_graph_save):
         Graphs.__init__(self, max_turn=max_turn, animated_graph_saving=animated_graph_save, image_graph_saving=image_graph_save)
 
         # First set up the figure, the axis, and the plot element we want to animate
-        self.fig, axes = plt.subplots(nrows=3, ncols=2)
+        self.fig, axes = plt.subplots(nrows=4, ncols=2)
         self.price_ax = axes[0][0]
         self.matches_ax = axes[0][1]
         self.volume_ax = axes[1][0]
         self.ppus_ax = axes[1][1]
         self.bid_ax = axes[2][0]
         self.ask_ax = axes[2][1]
-        
+        self.return_ax = axes[3][0]
 
-        self.prices, self.matches, self.bids, self.asks, self.volumes, self.ppus = [], [], [], [], [], []
-        self.price_line, self.matches_line, self.bid_line, self.ask_line, self.volume_line, self.profit_line = [], [], [], [], [], []
+        self.blank_ax = axes[3][1]
+        self.blank_ax.set_visible(False)
+
+        self.prices, self.matches, self.bids, self.asks, self.volumes, self.ppus, self.return_ratios = [], [], [], [], [], [], []
+        self.price_line, self.matches_line, self.bid_line, self.ask_line, self.volume_line, self.profit_line, self.return_line = [], [], [], [], [], [], []
         self.fig.tight_layout()
 
         # In order: graph ax, ax name, animated graph line(excluding time_line), static graph lines, animated_time_line,
@@ -141,11 +150,12 @@ class MarketGraphs(Graphs):
                      (self.volume_ax, 'Volume', [self.volume_line], [self.volumes], self.time_line, ['y']),
                      (self.ppus_ax, 'Profit per Unit', [self.profit_line], [self.ppus], self.time_line, ['m']),
                      (self.bid_ax, 'Bid Prices', [self.bid_line], [self.bids], self.time_line, ['b']),
-                     (self.ask_ax, 'Ask Prices', [self.ask_line], [self.asks], self.time_line, ['c'])]
+                     (self.ask_ax, 'Ask Prices', [self.ask_line], [self.asks], self.time_line, ['c']),
+                     (self.return_ax, 'Return Ratios', [self.return_line], [self.return_ratios], self.time_line, ['k'])]
 
-        self.graph_lines = [self.price_line, self.matches_line, self.volume_line, self.profit_line, self.bid_line, self.ask_line,
-                            self.time_line]
-        self.info_lists = [self.prices, self.matches, self.volumes, self.ppus, self.bids, self.asks]
+        self.graph_lines = [self.price_line, self.matches_line, self.volume_line, self.profit_line, self.bid_line,
+                            self.ask_line, self.return_line, self.time_line]
+        self.info_lists = [self.prices, self.matches, self.volumes, self.ppus, self.bids, self.asks, self.return_ratios]
 
         self.line_1, = self.price_ax.plot(self.time_line, self.price_line, color='g')
         self.line_2, = self.matches_ax.plot(self.time_line, self.matches_line, color='r')
@@ -153,11 +163,12 @@ class MarketGraphs(Graphs):
         self.line_4, = self.ppus_ax.plot(self.time_line, self.profit_line, color='m')
         self.line_5, = self.bid_ax.plot(self.time_line, self.bid_line, color='b')
         self.line_6, = self.ask_ax.plot(self.time_line, self.ask_line, color='c')
-        self.lines = [self.line_1, self.line_2, self.line_3, self.line_4, self.line_5, self.line_6]
+        self.line_7, = self.return_ax.plot(self.time_line, self.return_line, color='k')
+        self.lines = [self.line_1, self.line_2, self.line_3, self.line_4, self.line_5, self.line_6, self.line_7]
 
     # record information to graph
-    def record_info(self, curr_price, matches, volume, profit_unit, bid, ask):
-        Graphs.record_graph_info(self.info_lists, [curr_price, matches, volume, profit_unit, bid, ask])
+    def record_info(self, curr_price, matches, volume, profit_unit, bid, ask, return_ratio):
+        Graphs.record_graph_info(self.info_lists, [curr_price, matches, volume, profit_unit, bid, ask, return_ratio])
         self.time += 1
 
     def gen_static_plot (self):
@@ -179,7 +190,7 @@ class MarketGraphs(Graphs):
                 if self.i == self.max_turn:
                     break
                 yield self.prices[self.i], self.matches[self.i], self.volumes[self.i], self.ppus[self.i], self.bids[self.i], \
-                      self.asks[self.i], self.times[self.i]
+                      self.asks[self.i], self.return_ratios[self.i], self.times[self.i]
 
         # initialization function: plot the background of each frame
         def init():
@@ -380,13 +391,15 @@ class AgentPerformance(Graphs):
         self.good_performers, self.bad_performers, self.agents_learned, self.mistakes_amount = [], [], [], []
         self.good_line, self.bad_line, self.learned_line, self.mistakes_line = [], [], [], []
         self.fig.tight_layout()
-        self.axes = [(self.performances_ax, "Good vs Bad Performers", [self.good_line, self.bad_line], [self.good_performers, self.bad_performers],
+        self.axes = [(self.performances_ax, "Good (green) vs Bad (red) Performers", [self.good_line, self.bad_line], [self.good_performers, self.bad_performers],
                      self.time_line, ['g', 'r'], .5),
                      (self.agents_learned_ax, 'Amount of Agents that learned', [self.learned_line], [self.agents_learned], self.time_line, ['b']),
                      (self.mistakes_ax, 'Amount of Mistakes made', [self.mistakes_line], [self.mistakes_amount], self.time_line, ['c'])]
 
         self.info_lists = [self.good_performers, self.bad_performers, self.agents_learned, self.mistakes_amount]
         self.graph_lines = [self.good_line, self.bad_line, self.learned_line, self.mistakes_amount, self.time_line]
+
+        self.performance_legend_info = ['Good Performers', 'Bad Peformers']
 
         self.line_1, = self.performances_ax.plot(self.time_line, self.good_line, color='g', lw=.5)
         self.line_2, = self.performances_ax.plot(self.time_line, self.bad_line, color='r', lw=.5)

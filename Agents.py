@@ -279,8 +279,8 @@ class Agent(object):
 
         forecast_obj.__set_forecast__(0)
         forecast_obj.__set_lagged_forecast__(self.mean)
-        forecast_obj.__set_variance__(self.forecast_params['new_forecast_var'])
-        forecast_obj.__set_real_variance__(self.forecast_params["new_forecast_var"])
+        forecast_obj.__set_variance__(self.forecast_params['init_var'])
+        forecast_obj.__set_real_variance__(self.forecast_params["init_var"])
         forecast_obj.__set_strength__(0)
 
         forecast_obj.__set_a__(a_rand)
@@ -354,7 +354,6 @@ class Agent(object):
     # GIVE INFORMATION BEFORE AGENTS PREPARE
     def prepare_trading(self):
         forecast_var = 0
-        max_strength = -1e50
         min_var = 1e50
         best_forecast = None
         n_active = False
@@ -382,20 +381,23 @@ class Agent(object):
                 n_active = True
 
                 if self.make_mistakes:
-                    if mistake_factor <= self.mistake_threshold:
-                        # print("MISTAKE HIT w/ FACTORS: ", skip_factor, mistake_factor)
+                    if mistake_factor < self.mistake_threshold:
+                        # print("MISTAKE HIT w/ FACTORS: ", mistake_factor)
                         min_var = forecast.__get_real_variance__
                         best_forecast = forecast
                         self.made_mistake = True
                         break
 
                     if forecast.__get_real_variance__ < min_var:
-                        if skip_factor <= self.mistake_threshold:
+                        if skip_factor < self.mistake_threshold:
                             # print("SKIP HIT w/ FACTORS: ", skip_factor, mistake_factor)
                             self.made_mistake = True
                             continue
                         min_var = forecast.__get_real_variance__
                         best_forecast = forecast
+                else:
+                    min_var = forecast.__get_real_variance__
+                    best_forecast = forecast
 
         # some forecasts are active
         if n_active:

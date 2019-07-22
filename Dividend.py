@@ -112,15 +112,3 @@ class Dividend(object):
     @property
     def __get_sample__(self):
         return random.choice(self.normal_dist)
-
-
-# def test():
-    # test_div = Dividend()
-    # if test_div.derived_params_empty():
-    #     test_div.set_derived_params()
-    # for i in range(10):
-    #     print("-- Turn " + str(i) + " --")
-    #     test_div.forecast()
-    #     print("-------")
-
-# test()
