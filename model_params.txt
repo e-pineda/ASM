@@ -22,7 +22,7 @@ Model Parameters
 
 	dynamic_interest = False
 	animated_graph_saving = False
-	image_graph_saving = False
+	image_graph_saving = True
 	make_mistakes = False
 	csv_save = True
 
