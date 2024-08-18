@@ -14,7 +14,7 @@ Agents are only allowed to select one forecasting method per turn of the simulat
 With this, it's important to mention that each agent learns by actively and independently updating their set of forecasting method through the Adaptive Rule Learning mechanism that I designed.
 
 ## Installation
-The only Python libraries required are Numpy, Pandas and Matplotlib. Run the below command before running the program:
+Use Python 3.12.5 and create a virtual environment. Then, run the below command to install the necessary packages:
 
 ```
 pip install -r requirements.txt
