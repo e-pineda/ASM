@@ -178,7 +178,7 @@ class MarketGraphs(Graphs):
 
         # save graph if necessary
         if self.image_graph_save:
-            Graphs.save_image_graph(figure=self.fig, name='Marketgraphs.png')
+            Graphs.save_image_graph(figure=self.fig, name='Output/GraphOutput/Marketgraphs.png')
 
         # show graph
         self.fig.show()
@@ -216,7 +216,7 @@ class MarketGraphs(Graphs):
                                        frames=frames, interval=200, save_count=self.max_turn, blit=True)
 
         if self.time == self.max_turn and self.animated_graph_save:
-            Graphs.save_animated_graph(animation=anim, writer=self.other_writer, name='Marketgraphs.mp4')
+            Graphs.save_animated_graph(animation=anim, writer=self.other_writer, name='Output/GraphOutput/Marketgraphs.mp4')
 
 
 class MAGraphs(Graphs):
@@ -259,7 +259,7 @@ class MAGraphs(Graphs):
 
         # save graph if necessary
         if self.image_graph_save:
-            Graphs.save_image_graph(figure=self.fig, name=self.name + '_MA_graph.png')
+            Graphs.save_image_graph(figure=self.fig, name=f'Output/GraphOutput/{self.name}_MA_graph.png')
 
         # show graph
         self.fig.show()
@@ -337,7 +337,7 @@ class AgentGraphs(Graphs):
 
         # save graph if necessary
         if self.image_graph_save:
-            Graphs.save_image_graph(figure=self.fig, name='Agent_graph.png')
+            Graphs.save_image_graph(figure=self.fig, name='Output/GraphOutput/Agent_graph.png')
 
         # show graph
         self.fig.show()
@@ -375,7 +375,7 @@ class AgentGraphs(Graphs):
                                        frames=frames, interval=200, save_count=self.max_turn)
         plt.close(self.fig)
         if self.time == self.max_turn and self.animated_graph_save:
-            Graphs.save_animated_graph(animation=anim, writer=self.FFwriter, name='agent_graphs.mp4')
+            Graphs.save_animated_graph(animation=anim, writer=self.FFwriter, name='Output/GraphOutput/agent_graphs.mp4')
 
 
 class AgentPerformance(Graphs):
@@ -421,7 +421,7 @@ class AgentPerformance(Graphs):
 
         # save graph if necessary
         if self.image_graph_save:
-            Graphs.save_image_graph(figure=self.fig, name='Performances.png')
+            Graphs.save_image_graph(figure=self.fig, name='Output/GraphOutput/Performances.png')
 
         # show graph
         self.fig.show()
@@ -457,7 +457,7 @@ class AgentPerformance(Graphs):
         anim = animation.FuncAnimation(self.fig, animate, init_func=init,
                                        frames=frames, interval=200, save_count=self.max_turn, blit=True)
         if self.time == self.max_turn and self.animated_graph_save:
-            Graphs.save_animated_graph(animation=anim, writer=self.other_writer, name='Performers.mp4')
+            Graphs.save_animated_graph(animation=anim, writer=self.other_writer, name='Output/GraphOutput/Performers.mp4')
 
 
 class InterestRate(Graphs):
@@ -490,7 +490,7 @@ class InterestRate(Graphs):
 
         # save graph if necessary
         if self.image_graph_save:
-            Graphs.save_image_graph(figure=self.fig, name='Performances.png')
+            Graphs.save_image_graph(figure=self.fig, name='Output/GraphOutput/Performances.png')
 
         # show graph
         self.fig.show()
@@ -526,7 +526,7 @@ class InterestRate(Graphs):
         anim = animation.FuncAnimation(self.fig, animate, init_func=init,
                                        frames=frames, interval=200, save_count=self.max_turn, blit=True)
         if self.time == self.max_turn and self.animated_graph_save:
-            Graphs.save_animated_graph(animation=anim, writer=self.other_writer, name='InterestGraphs.mp4')
+            Graphs.save_animated_graph(animation=anim, writer=self.other_writer, name='Output/GraphOutput/InterestGraphs.mp4')
 
 
 

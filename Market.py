@@ -291,7 +291,7 @@ class Market(object):
             '500 Day Price Moving Average': self.pr_mas[3]
         }
         df = pd.DataFrame(data)
-        df.to_csv('market_states.csv')
+        df.to_csv('Output/MarketOutput/market_states.csv')
 
     def warm_up(self):
         for i in range(self.warm_up_time):
@@ -524,4 +524,4 @@ class Market(object):
 
     def save_data(self, data):
         df = pd.DataFrame(data=data)
-        df.to_csv('output.csv', sep='\t')
+        df.to_csv('Output/MarketOutput/output.csv', sep='\t')
